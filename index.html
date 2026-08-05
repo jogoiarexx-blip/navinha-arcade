@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Navinha Arcade - Fases</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<canvas id="gameCanvas" width="480" height="720"></canvas>
+
+<!--
+  O jogo é dividido em módulos dentro de js/, carregados em ordem de
+  dependência com <script src>. Isso continua funcionando com duplo
+  clique (abrindo o index.html direto no navegador, sem servidor),
+  diferente de módulos ES6 (import/export), que exigem um servidor
+  por causa das regras de CORS do navegador para o protocolo file://.
+-->
+<script src="js/core.js"></script>
+<!-- Um arquivo por fase: cada um define seu próprio tema visual e
+     chefe (nome, cores, padrão de ataque). PHASE_DEFS é declarado em
+     core.js, então precisa vir antes destes. -->
+<script src="js/phases/phase1.js"></script>
+<script src="js/phases/phase2.js"></script>
+<script src="js/phases/phase3.js"></script>
+<script src="js/phases/phase4.js"></script>
+<script src="js/phases/phase5.js"></script>
+<script src="js/phases/phase6.js"></script>
+<script src="js/phases/phase7.js"></script>
+<script src="js/phases/phase8.js"></script>
+<script src="js/phases/phase9.js"></script>
+<script src="js/phases/phase10.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/levels.js"></script>
+<script src="js/player.js"></script>
+<script src="js/enemies.js"></script>
+<script src="js/rescue.js"></script>
+<script src="js/upgrades.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>
