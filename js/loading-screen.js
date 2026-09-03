@@ -110,8 +110,9 @@ function drawLoadingScreen() {
         gradient.addColorStop(0, '#1ca9ff');
         gradient.addColorStop(1, meta.accent);
         ctx.fillStyle = gradient;
+        const profile = typeof GraphicsManager !== 'undefined' ? GraphicsManager.profile() : null;
         ctx.shadowColor = meta.accent;
-        ctx.shadowBlur = 12;
+        ctx.shadowBlur = !profile || profile.glows ? Math.min(12, profile ? (profile.glowCap || 12) : 12) : 0;
         ctx.fillRect(barX, barY, fillW, barH);
         ctx.shadowBlur = 0;
     }

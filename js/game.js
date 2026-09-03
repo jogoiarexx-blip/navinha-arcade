@@ -13,7 +13,8 @@ function update() {
     // Estrelas (3 camadas de paralaxe) e decoração de fundo da fase sempre
     // se movem, exceto pausado
     if (gameState !== 'PAUSED') {
-        if (currentLevel === 1) phaseBackgroundScroll += 0.0015;
+        const graphics = typeof GraphicsManager !== 'undefined' ? GraphicsManager.profile() : null;
+        if (currentLevel === 1 && (!graphics || graphics.animatedBackground)) phaseBackgroundScroll += 0.0015;
         [starsFar, stars, starsNear].forEach(layer => {
             layer.forEach(s => {
                 s.y += s.speed;
@@ -360,16 +361,18 @@ function drawPhaseBackground() {
     const ih = image.naturalHeight || image.height;
     if (!iw || !ih) return;
 
-    const scale = Math.max(W / iw, H / ih);
-    const drawW = iw * scale;
-    const drawH = ih * scale;
-    const maxPan = Math.max(0, drawH - H);
-    const panY = maxPan * (0.5 - 0.5 * Math.cos(phaseBackgroundScroll));
+    const profile = typeof GraphicsManager !== 'undefined' ? GraphicsManager.profile() : { animatedBackground:true };
+    const sourceW = Math.min(iw, Math.max(1, Math.round(ih * W / H)));
+    const sourceH = Math.min(ih, Math.max(1, Math.round(sourceW * H / W)));
+    const sourceX = Math.max(0, Math.round((iw - sourceW) / 2));
+    const maxPan = Math.max(0, ih - sourceH);
+    const sourceY = profile.animatedBackground ?
+        Math.round(maxPan * (0.5 - 0.5 * Math.cos(phaseBackgroundScroll))) : Math.round(maxPan / 2);
 
     ctx.save();
-    ctx.globalAlpha = 0.9;
+    ctx.globalAlpha = profile.animatedBackground ? 0.9 : 0.78;
     ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(image, (W - drawW) / 2, -panY, drawW, drawH);
+    ctx.drawImage(image, sourceX, sourceY, sourceW, sourceH, 0, 0, W, H);
     ctx.globalAlpha = 1;
     ctx.fillStyle = 'rgba(0, 0, 12, 0.18)';
     ctx.fillRect(0, 0, W, H);
@@ -436,7 +439,8 @@ function draw() {
             drawPlayerShip();
             if (player.shield > 0) {
                 const shieldAlpha = 0.72 + Math.sin(Date.now() / 90) * 0.18;
-                const shieldDrawn = typeof EffectSpriteManager !== 'undefined' &&
+                const profile = typeof GraphicsManager !== 'undefined' ? GraphicsManager.profile() : { spriteBullets:true };
+                const shieldDrawn = profile.spriteBullets && typeof EffectSpriteManager !== 'undefined' &&
                     EffectSpriteManager.draw('shield', player.x + player.w / 2, player.y + player.h / 2,
                         84, 84, { rotation: Date.now() / 2400, alpha: shieldAlpha, additive: true, glowBlur: 10 });
                 if (!shieldDrawn) {
@@ -451,7 +455,8 @@ function draw() {
 
         bullets.forEach(b => {
             const angle = Math.atan2(b.vx || 0, b.speed || 10);
-            const drawn = typeof EffectSpriteManager !== 'undefined' &&
+            const profile = typeof GraphicsManager !== 'undefined' ? GraphicsManager.profile() : { spriteBullets:true };
+            const drawn = profile.spriteBullets && typeof EffectSpriteManager !== 'undefined' &&
                 EffectSpriteManager.draw('playerBullet', b.x + b.w / 2, b.y + b.h / 2,
                     Math.max(11, b.w * 1.9), Math.max(28, b.h * 1.9),
                     { rotation: angle, additive: true, glowBlur: 7 });
@@ -463,7 +468,8 @@ function draw() {
 
         enemyBullets.forEach(b => {
             const angle = Math.atan2(-(b.vx || 0), Math.abs(b.speed || 5));
-            const drawn = typeof EffectSpriteManager !== 'undefined' &&
+            const profile = typeof GraphicsManager !== 'undefined' ? GraphicsManager.profile() : { spriteBullets:true };
+            const drawn = profile.spriteBullets && typeof EffectSpriteManager !== 'undefined' &&
                 EffectSpriteManager.draw('enemyBullet', b.x + b.w / 2, b.y + b.h / 2,
                     Math.max(12, b.w * 1.8), Math.max(28, b.h * 1.8),
                     { rotation: angle, additive: true, glow: b.color || '#ff287e', glowBlur: 7 });
@@ -475,7 +481,8 @@ function draw() {
 
         enemies.forEach(e => {
             drawEnemy(e);
-            if (e.hitFlash > 0) {
+            const profile = typeof GraphicsManager !== 'undefined' ? GraphicsManager.profile() : { bossFlash:true };
+            if (e.hitFlash > 0 && profile.bossFlash) {
                 // Flash de dano: overlay branco aditivo em vez de ctx.filter
                 // (ctx.filter='brightness()' processa pixel a pixel e derruba
                 // o FPS quando o boss, que é grande, toma tiro quase todo frame).
@@ -495,9 +502,11 @@ function draw() {
         drawRescues();
 
         particles.forEach(p => {
+            const profile = typeof GraphicsManager !== 'undefined' ? GraphicsManager.profile() :
+                { spriteParticles:true, spriteExplosions:true };
             const lifeFrac = Math.max(0, p.life / (p.maxLife || 40));
             let drawn = false;
-            if (typeof EffectSpriteManager !== 'undefined' && p.effect === 'explosion') {
+            if (profile.spriteExplosions && typeof EffectSpriteManager !== 'undefined' && p.effect === 'explosion') {
                 const progress = 1 - lifeFrac;
                 const size = p.size * (0.48 + progress * 0.82);
                 drawn = EffectSpriteManager.draw('explosion', p.x, p.y, size, size, {
@@ -507,7 +516,7 @@ function draw() {
                     glow: p.color,
                     glowBlur: 12
                 });
-            } else if (typeof EffectSpriteManager !== 'undefined') {
+            } else if (profile.spriteParticles && typeof EffectSpriteManager !== 'undefined') {
                 const size = Math.max(5, p.size * 2.5);
                 drawn = EffectSpriteManager.draw('particle', p.x, p.y, size, size, {
                     rotation: p.rotation || 0,
@@ -544,10 +553,34 @@ function draw() {
 }
 
 // ================= LOOP =================
-function gameLoop() {
+let lastLoopTime = null;
+let updateAccumulator = 0;
+let lastDrawTime = 0;
+const FIXED_UPDATE_MS = 1000 / 60;
+
+function gameLoop(timestamp) {
+    const clock = typeof performance !== 'undefined' && performance.now ? performance : Date;
+    const now = Number.isFinite(timestamp) ? timestamp : clock.now();
+    if (lastLoopTime === null) lastLoopTime = now - FIXED_UPDATE_MS;
+    const elapsed = Math.min(50, Math.max(0, now - lastLoopTime));
+    lastLoopTime = now;
+    updateAccumulator += elapsed;
     try {
-        update();
-        draw();
+        let steps = 0;
+        while (updateAccumulator >= FIXED_UPDATE_MS && steps < 3) {
+            update();
+            updateAccumulator -= FIXED_UPDATE_MS;
+            steps++;
+        }
+        const profile = typeof GraphicsManager !== 'undefined' ? GraphicsManager.profile() : { renderFps:60 };
+        const drawInterval = 1000 / profile.renderFps;
+        if (lastDrawTime === 0 || now - lastDrawTime >= drawInterval - 1) {
+            const drawStarted = clock.now();
+            draw();
+            const drawCost = clock.now() - drawStarted;
+            if (typeof GraphicsManager !== 'undefined') GraphicsManager.recordDrawCost(drawCost, now);
+            lastDrawTime = now;
+        }
     } catch (err) {
         // Mostra o erro na tela em vez de deixar tudo preto e silencioso
         ctx.fillStyle = '#000';

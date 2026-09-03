@@ -8,9 +8,11 @@ function initStars() {
     stars = [];
     starsFar = [];
     starsNear = [];
+    const starCounts = typeof GraphicsManager !== 'undefined'
+        ? GraphicsManager.profile().stars : [90, 110, 50];
     // alphaBase + twinklePhase: o brilho oscila com sin no draw,
     // sem Math.random() a cada quadro (mais barato e sem cintilação caótica).
-    for (let i = 0; i < 90; i++) {
+    for (let i = 0; i < starCounts[0]; i++) {
         starsFar.push({
             x: Math.random() * W,
             y: Math.random() * H,
@@ -21,7 +23,7 @@ function initStars() {
             twinkleSpeed: 0.015 + Math.random() * 0.025
         });
     }
-    for (let i = 0; i < 110; i++) {
+    for (let i = 0; i < starCounts[1]; i++) {
         stars.push({
             x: Math.random() * W,
             y: Math.random() * H,
@@ -32,7 +34,7 @@ function initStars() {
             twinkleSpeed: 0.02 + Math.random() * 0.035
         });
     }
-    for (let i = 0; i < 50; i++) {
+    for (let i = 0; i < starCounts[2]; i++) {
         starsNear.push({
             x: Math.random() * W,
             y: Math.random() * H,

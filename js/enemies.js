@@ -529,7 +529,9 @@ function drawBossTelegraph(e) {
     // Brilho no casco do chefe (carga do canhão)
     const cx = e.x + e.w / 2;
     const cy = e.y + e.h * 0.55;
-    ctx.shadowBlur = 12 + frac * 18;
+    const profile = typeof GraphicsManager !== 'undefined' ? GraphicsManager.profile() : null;
+    ctx.shadowBlur = !profile || profile.glows ?
+        Math.min(12 + frac * 18, profile ? (profile.glowCap || 30) : 30) : 0;
     ctx.shadowColor = pattern === 2 ? '#ff00ff' : (pattern === 3 ? '#a0ff00' : (pattern === 1 ? '#ff8800' : '#ff4444'));
     ctx.fillStyle = ctx.shadowColor;
     ctx.globalAlpha = 0.15 + frac * 0.35;
@@ -694,9 +696,13 @@ function drawAvailableEnemySprite(e) {
     }
 
     ctx.save();
-    ctx.imageSmoothingEnabled = true;
-    ctx.shadowColor = spriteDef.glow;
-    ctx.shadowBlur = e.type === 'boss' ? 12 : 4;
+    ctx.imageSmoothingEnabled = false;
+    const profile = typeof GraphicsManager !== 'undefined' ? GraphicsManager.profile() : null;
+    if (!profile || profile.glows) {
+        ctx.shadowColor = spriteDef.glow;
+        const requestedBlur = e.type === 'boss' ? 12 : 4;
+        ctx.shadowBlur = profile ? Math.min(requestedBlur, profile.glowCap || requestedBlur) : requestedBlur;
+    }
     ctx.drawImage(image,
         e.x + e.w / 2 - drawWidth / 2,
         e.y + e.h / 2 - drawHeight / 2,

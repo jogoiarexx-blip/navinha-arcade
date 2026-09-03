@@ -34,10 +34,12 @@ const ShipSpriteManager = (() => {
         const width = height * image.naturalWidth / image.naturalHeight;
         ctx.save();
         ctx.globalAlpha = opts.alpha === undefined ? 1 : opts.alpha;
-        ctx.imageSmoothingEnabled = opts.smoothing !== false;
-        if (opts.glow) {
+        ctx.imageSmoothingEnabled = false;
+        const profile = typeof GraphicsManager !== 'undefined' ? GraphicsManager.profile() : null;
+        if (opts.glow && (!profile || profile.glows)) {
             ctx.shadowColor = opts.glow;
-            ctx.shadowBlur = opts.glowBlur || 12;
+            const requestedBlur = opts.glowBlur || 12;
+            ctx.shadowBlur = profile ? Math.min(requestedBlur, profile.glowCap || requestedBlur) : requestedBlur;
         }
         ctx.drawImage(image, centerX - width / 2, centerY - height / 2, width, height);
         ctx.restore();

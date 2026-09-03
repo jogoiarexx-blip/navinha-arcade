@@ -5,8 +5,10 @@
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
-const W = canvas.width;
-const H = canvas.height;
+// A resolução interna pode ser ajustada pelas opções gráficas enquanto o
+// jogador está no menu. As coordenadas continuam usando a mesma altura.
+let W = canvas.width;
+let H = canvas.height;
 
 // ================= STORAGE SEGURO =================
 // localStorage pode lançar erro em file://, webviews e navegadores
@@ -337,6 +339,8 @@ function generateLevelDecor(level) {
     const phase = getPhase(level);
     const decor = [];
     const accent = phase.decorAccent || '#f26';
+    const decorScale = typeof GraphicsManager !== 'undefined'
+        ? GraphicsManager.profile().decorScale : 1;
 
     // Planeta/lua ao fundo: dá identidade instantânea à fase por um custo
     // baixíssimo (1 gradiente CRIADO UMA VEZ aqui e reaproveitado todo
@@ -361,7 +365,7 @@ function generateLevelDecor(level) {
 
     // Poeira/detritos leves em toda fase — camada extra de profundidade,
     // tão barata quanto as camadas de estrelas (só fillRect com alpha).
-    const dustCount = phase.decor === 'none' ? 26 : 14;
+    const dustCount = Math.max(5, Math.round((phase.decor === 'none' ? 26 : 14) * decorScale));
     for (let i = 0; i < dustCount; i++) {
         decor.push({
             type: 'dust', x: Math.random() * W, y: Math.random() * H,
@@ -372,7 +376,7 @@ function generateLevelDecor(level) {
     }
 
     if (phase.decor === 'nebula') {
-        for (let i = 0; i < 8; i++) {
+        for (let i = 0; i < Math.max(3, Math.round(8 * decorScale)); i++) {
             decor.push({
                 type: 'blob', x: Math.random() * W, y: Math.random() * H,
                 r: 60 + Math.random() * 90, color: accent, alphaBase: 0.05 + Math.random() * 0.06,
@@ -381,7 +385,7 @@ function generateLevelDecor(level) {
             });
         }
     } else if (phase.decor === 'asteroids') {
-        for (let i = 0; i < 9; i++) {
+        for (let i = 0; i < Math.max(3, Math.round(9 * decorScale)); i++) {
             decor.push({
                 type: 'asteroid', x: Math.random() * W, y: Math.random() * H,
                 r: 12 + Math.random() * 20, speed: 0.3 + Math.random() * 0.5, rot: Math.random() * Math.PI * 2,
@@ -389,7 +393,7 @@ function generateLevelDecor(level) {
             });
         }
     } else if (phase.decor === 'crystals') {
-        for (let i = 0; i < 9; i++) {
+        for (let i = 0; i < Math.max(3, Math.round(9 * decorScale)); i++) {
             decor.push({
                 type: 'crystal', x: Math.random() * W, y: Math.random() * H,
                 r: 10 + Math.random() * 16, speed: 0.4 + Math.random() * 0.5,
@@ -466,7 +470,9 @@ function collide(a, b) {
 }
 
 function spawnParticles(x, y, color, amount) {
-    if (amount >= 10) {
+    const useExplosionSprite = typeof GraphicsManager === 'undefined' ||
+        GraphicsManager.profile().spriteExplosions;
+    if (useExplosionSprite && amount >= 10) {
         const explosionSize = amount >= 30 ? 96 : (amount >= 18 ? 68 : 48);
         particles.push({
             effect: 'explosion', x, y, size: explosionSize,

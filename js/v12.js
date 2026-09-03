@@ -5,10 +5,12 @@ const GAME_VERSION='1.8';
 // Limita partículas em máquinas mais fracas e impede acúmulo durante bosses.
 const _spawnParticlesV11=spawnParticles;
 spawnParticles=function(x,y,color,amount){
-  const maxParticles=(typeof fxQuality!=='undefined'&&fxQuality==='BAIXA')?150:260;
+  const profile=typeof GraphicsManager!=='undefined'?GraphicsManager.profile():{particleCap:260,particleScale:1};
+  const maxParticles=profile.particleCap;
   if(particles.length>=maxParticles)return;
   const room=maxParticles-particles.length;
-  _spawnParticlesV11(x,y,color,Math.max(0,Math.min(amount,room)));
+  const scaledAmount=Math.max(1,Math.round(amount*profile.particleScale));
+  _spawnParticlesV11(x,y,color,Math.max(0,Math.min(scaledAmount,room)));
 };
 
 function roundRectPath(x,y,w,h,r){
@@ -24,10 +26,12 @@ function neonButton(r,label,sub,accent,active=true){
 function drawMenuBackdropV12(){
   const g=ctx.createRadialGradient(W*.5,H*.25,10,W*.5,H*.35,Math.max(W,H)*.85);g.addColorStop(0,'#102645');g.addColorStop(.35,'#081325');g.addColorStop(1,'#01030a');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
   // nebulosas leves
-  ctx.save();ctx.globalCompositeOperation='screen';
-  for(let i=0;i<3;i++){const x=[.18,.72,.52][i]*W,y=[.30,.24,.72][i]*H,r=[.24,.20,.27][i]*Math.min(W,H);const ng=ctx.createRadialGradient(x,y,0,x,y,r);ng.addColorStop(0,['rgba(36,112,180,.17)','rgba(130,52,180,.13)','rgba(0,170,150,.09)'][i]);ng.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=ng;ctx.fillRect(x-r,y-r,r*2,r*2);}ctx.restore();
+  const profile=typeof GraphicsManager!=='undefined'?GraphicsManager.profile():{additive:true};
+  ctx.save();ctx.globalCompositeOperation=profile.additive?'screen':'source-over';
+  const nebulaCount=profile.label==='BAIXO'?1:3;
+  for(let i=0;i<nebulaCount;i++){const x=[.18,.72,.52][i]*W,y=[.30,.24,.72][i]*H,r=[.24,.20,.27][i]*Math.min(W,H);const ng=ctx.createRadialGradient(x,y,0,x,y,r);ng.addColorStop(0,['rgba(36,112,180,.17)','rgba(130,52,180,.13)','rgba(0,170,150,.09)'][i]);ng.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=ng;ctx.fillRect(x-r,y-r,r*2,r*2);}ctx.restore();
   // scanlines sutis
-  ctx.fillStyle='rgba(255,255,255,.018)';for(let y=0;y<H;y+=4)ctx.fillRect(0,y,W,1);
+  if(profile.label!=='BAIXO'){ctx.fillStyle='rgba(255,255,255,.018)';for(let y=0;y<H;y+=4)ctx.fillRect(0,y,W,1);}
 }
 function drawHeroShipV12(cx,cy,s=1){
   const bob=Math.sin(Date.now()/520)*4;cy+=bob;const heroDef=SHIP_DEFS[selectedShip]||SHIP_DEFS[0];
@@ -73,4 +77,4 @@ drawHUD=function(){_drawHUDV11();if(gameState==='PLAYING'){ctx.save();const vg=c
 
 // overlay de impacto curto sem freeze de lógica.
 const _drawEnemyV11=drawEnemy;
-drawEnemy=function(e){_drawEnemyV11(e);if(e.type==='boss'&&e.hitFlash>0){ctx.save();ctx.globalCompositeOperation='screen';ctx.globalAlpha=.12;ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(e.x+e.w/2,e.y+e.h/2,e.w*.62,0,Math.PI*2);ctx.fill();ctx.restore();}};
+drawEnemy=function(e){_drawEnemyV11(e);const flash=typeof GraphicsManager==='undefined'||GraphicsManager.profile().bossFlash;if(flash&&e.type==='boss'&&e.hitFlash>0){ctx.save();ctx.globalCompositeOperation='screen';ctx.globalAlpha=.12;ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(e.x+e.w/2,e.y+e.h/2,e.w*.62,0,Math.PI*2);ctx.fill();ctx.restore();}};

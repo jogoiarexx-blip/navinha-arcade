@@ -37,8 +37,11 @@ const PowerupSpriteManager = (() => {
         ctx.rotate(rotation || 0);
         ctx.globalAlpha = alpha === undefined ? 1 : alpha;
         ctx.imageSmoothingEnabled = false;
-        ctx.shadowColor = def.glow;
-        ctx.shadowBlur = 12;
+        const profile = typeof GraphicsManager !== 'undefined' ? GraphicsManager.profile() : null;
+        if (!profile || profile.glows) {
+            ctx.shadowColor = def.glow;
+            ctx.shadowBlur = profile ? Math.min(12, profile.glowCap || 12) : 12;
+        }
         ctx.drawImage(image, -drawW / 2, -drawH / 2, drawW, drawH);
         ctx.restore();
         return true;

@@ -117,7 +117,9 @@ context = vm.createContext({
     requestAnimationFrame: () => 1
 });
 context.window = context;
-context.window.matchMedia = () => ({ matches: false });
+context.window.matchMedia = query => ({
+    matches: query.includes('max-width') ? testWidth <= 480 : testWidth >= 980
+});
 context.window.addEventListener = (type, callback) => { windowListeners[type] = callback; };
 
 function run(code) { return vm.runInContext(code, context); }
@@ -143,6 +145,19 @@ for (const source of sources) {
 
 (async () => {
     await waitFor("AssetManager.getStats().sharedAssets === 16 && Object.keys(POWERUP_SPRITES).every(type => !!PowerupSpriteManager.get(type)) && Object.values(SHARED_ENEMY_SPRITES).every(def => !!AssetManager.getSharedImage(def.key)) && Object.keys(EFFECT_SPRITES).every(name => !!EffectSpriteManager.get(name))");
+    assert.deepStrictEqual(Array.from(run('GRAPHICS_MODES')), ['AUTOMATICO', 'BAIXO', 'MEDIO', 'ALTO']);
+    run("GraphicsManager.setMode('AUTOMATICO')");
+    assert.strictEqual(run('GraphicsManager.effective()'), 'BAIXO');
+    assert.strictEqual(run('GraphicsManager.displayLabel()'), 'AUTO (BAIXO)');
+    assert.strictEqual(run('GraphicsManager.profile().renderFps'), 30);
+    const expectedWidths = testWidth <= 480 ? [480, 480, 480] : [640, 800, 1024];
+    ['BAIXO', 'MEDIO', 'ALTO'].forEach((mode, index) => {
+        run(`GraphicsManager.setMode('${mode}')`);
+        assert.strictEqual(run('GraphicsManager.effective()'), mode);
+        assert.strictEqual(run('canvas.width'), expectedWidths[index]);
+        assert.strictEqual(run('GraphicsManager.profile().renderFps'), [30, 45, 60][index]);
+    });
+    assert.strictEqual(JSON.parse(storage.get('navinhaGraphicsMode')), 'ALTO');
     assert.strictEqual(run('ShipSpriteManager.getActiveIndex()'), 0);
     const spritePaths = Array.from(run('SHIP_DEFS.map(ship => ship.sprite)'));
     assert.strictEqual(spritePaths.length, 5);
@@ -158,8 +173,12 @@ for (const source of sources) {
     assert.strictEqual(effectPaths.length, 6);
     effectPaths.forEach(sprite => assert.ok(fs.existsSync(path.join(root, sprite)), sprite));
     assert.strictEqual(run("EffectSpriteManager.draw('shield', 50, 50, 80, 80)"), true);
-    run("particles = []; spawnParticles(10, 10, '#fff', 12)");
+    run("GraphicsManager.setMode('ALTO'); particles = []; spawnParticles(10, 10, '#fff', 12)");
     assert.strictEqual(run("particles.some(p => p.effect === 'explosion')"), true);
+    run("GraphicsManager.setMode('BAIXO'); particles = []; spawnParticles(10, 10, '#fff', 400)");
+    assert.ok(run('particles.length') <= 55);
+    assert.strictEqual(run("particles.some(p => p.effect === 'explosion')"), false);
+    run("GraphicsManager.setMode('MEDIO')");
     run('particles = []');
 
     run('shipsUnlocked = [true, true, true, true, true]');

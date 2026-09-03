@@ -30,14 +30,18 @@ const EffectSpriteManager = (() => {
         if (!def || !image || !image.naturalWidth || !image.naturalHeight) return false;
 
         const opts = options || {};
+        const profile = typeof GraphicsManager !== 'undefined' ? GraphicsManager.profile() : null;
         ctx.save();
         ctx.translate(centerX, centerY);
         ctx.rotate(opts.rotation || 0);
         ctx.globalAlpha = opts.alpha === undefined ? 1 : opts.alpha;
-        ctx.globalCompositeOperation = opts.additive ? 'lighter' : 'source-over';
+        ctx.globalCompositeOperation = opts.additive && (!profile || profile.additive) ? 'lighter' : 'source-over';
         ctx.imageSmoothingEnabled = false;
-        ctx.shadowColor = opts.glow || def.glow;
-        ctx.shadowBlur = opts.glowBlur === undefined ? 8 : opts.glowBlur;
+        if (!profile || profile.glows) {
+            ctx.shadowColor = opts.glow || def.glow;
+            const requestedBlur = opts.glowBlur === undefined ? 8 : opts.glowBlur;
+            ctx.shadowBlur = profile ? Math.min(requestedBlur, profile.glowCap || requestedBlur) : requestedBlur;
+        }
         ctx.drawImage(image, -width / 2, -height / 2, width, height);
         ctx.restore();
         return true;
