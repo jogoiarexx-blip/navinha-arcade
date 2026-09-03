@@ -1,0 +1,251 @@
+const fs = require('fs');
+const path = require('path');
+const vm = require('vm');
+const assert = require('assert');
+
+const root = path.resolve(__dirname, '..');
+const scriptTags = [];
+const canvasListeners = {};
+const windowListeners = {};
+const noop = () => {};
+const gradient = { addColorStop: noop };
+const ctx2d = new Proxy({}, {
+    get(target, key) {
+        if (key === 'createLinearGradient' || key === 'createRadialGradient') return () => gradient;
+        if (!(key in target)) target[key] = noop;
+        return target[key];
+    },
+    set(target, key, value) { target[key] = value; return true; }
+});
+const testWidth = Number(process.env.TEST_WIDTH || 480);
+const canvas = {
+    width: testWidth,
+    height: 720,
+    getContext: () => ctx2d,
+    addEventListener: (type, callback) => { canvasListeners[type] = callback; },
+    getBoundingClientRect: () => ({ left: 0, top: 0, width: testWidth, height: 720 })
+};
+
+let context;
+const documentMock = {
+    hidden: false,
+    fullscreenElement: null,
+    getElementById: id => id === 'gameCanvas' ? canvas : null,
+    addEventListener: noop,
+    createElement(type) {
+        assert.strictEqual(type, 'script');
+        return {
+            tagName: 'SCRIPT',
+            dataset: {},
+            async: false,
+            src: '',
+            remove() {
+                const index = scriptTags.indexOf(this);
+                if (index >= 0) scriptTags.splice(index, 1);
+            }
+        };
+    },
+    querySelectorAll(selector) {
+        return selector === 'script[data-level-asset]' ? scriptTags.slice() : [];
+    },
+    body: {
+        appendChild(script) {
+            scriptTags.push(script);
+            setImmediate(() => {
+                const cleanUrl = script.src.split('?')[0];
+                const filename = path.join(root, cleanUrl);
+                if (!fs.existsSync(filename)) {
+                    if (script.onerror) script.onerror(new Error('404'));
+                    return;
+                }
+                try {
+                    vm.runInContext(fs.readFileSync(filename, 'utf8'), context, { filename });
+                    if (script.onload) script.onload();
+                } catch (error) {
+                    if (script.onerror) script.onerror(error);
+                }
+            });
+            return script;
+        }
+    },
+    documentElement: {}
+};
+
+const storage = new Map([['navinhaTutorialSeen', 'true']]);
+context = vm.createContext({
+    console,
+    document: documentMock,
+    localStorage: {
+        getItem: key => storage.has(key) ? storage.get(key) : null,
+        setItem: (key, value) => storage.set(key, value)
+    },
+    navigator: {},
+    Image: class MockImage {
+        constructor() {
+            this.naturalWidth = 350;
+            this.naturalHeight = 512;
+            this.complete = false;
+            this._src = '';
+        }
+        set src(value) {
+            this._src = value;
+            if (!value) {
+                this.complete = false;
+                return;
+            }
+            setImmediate(() => {
+                const cleanUrl = value.split('?')[0];
+                if (!fs.existsSync(path.join(root, cleanUrl))) {
+                    if (this.onerror) this.onerror(new Error('404'));
+                    return;
+                }
+                this.complete = true;
+                if (this.onload) this.onload();
+            });
+        }
+        get src() { return this._src; }
+    },
+    setTimeout,
+    clearTimeout,
+    setInterval: () => 1,
+    clearInterval: noop,
+    setImmediate,
+    Math,
+    Date,
+    URL,
+    Promise,
+    requestAnimationFrame: () => 1
+});
+context.window = context;
+context.window.matchMedia = () => ({ matches: false });
+context.window.addEventListener = (type, callback) => { windowListeners[type] = callback; };
+
+function run(code) { return vm.runInContext(code, context); }
+function waitFor(expression, timeout = 3000) {
+    const started = Date.now();
+    return new Promise((resolve, reject) => {
+        const poll = () => {
+            try {
+                if (run(expression)) return resolve();
+            } catch (error) { return reject(error); }
+            if (Date.now() - started > timeout) return reject(new Error('Timeout: ' + expression));
+            setTimeout(poll, 10);
+        };
+        poll();
+    });
+}
+
+const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+const sources = [...html.matchAll(/<script src="([^"]+)"><\/script>/g)].map(match => match[1]);
+for (const source of sources) {
+    run(fs.readFileSync(path.join(root, source), 'utf8'));
+}
+
+(async () => {
+    await waitFor("AssetManager.getStats().sharedAssets === 16 && Object.keys(POWERUP_SPRITES).every(type => !!PowerupSpriteManager.get(type)) && Object.values(SHARED_ENEMY_SPRITES).every(def => !!AssetManager.getSharedImage(def.key)) && Object.keys(EFFECT_SPRITES).every(name => !!EffectSpriteManager.get(name))");
+    assert.strictEqual(run('ShipSpriteManager.getActiveIndex()'), 0);
+    const spritePaths = Array.from(run('SHIP_DEFS.map(ship => ship.sprite)'));
+    assert.strictEqual(spritePaths.length, 5);
+    spritePaths.forEach(sprite => assert.ok(fs.existsSync(path.join(root, sprite)), sprite));
+    const powerupPaths = Array.from(run('Object.values(POWERUP_SPRITES).map(def => def.file)'));
+    assert.strictEqual(powerupPaths.length, 6);
+    powerupPaths.forEach(sprite => assert.ok(fs.existsSync(path.join(root, sprite)), sprite));
+    assert.deepStrictEqual(Array.from(run("Object.keys(POWERUP_SPRITES).map(type => !!PowerupSpriteManager.get(type))")), [true, true, true, true, true, true]);
+    const sharedEnemyPaths = Array.from(run('Object.values(SHARED_ENEMY_SPRITES).map(def => def.file)'));
+    assert.strictEqual(sharedEnemyPaths.length, 3);
+    sharedEnemyPaths.forEach(sprite => assert.ok(fs.existsSync(path.join(root, sprite)), sprite));
+    const effectPaths = Array.from(run('Object.values(EFFECT_SPRITES).map(def => def.file)'));
+    assert.strictEqual(effectPaths.length, 6);
+    effectPaths.forEach(sprite => assert.ok(fs.existsSync(path.join(root, sprite)), sprite));
+    assert.strictEqual(run("EffectSpriteManager.draw('shield', 50, 50, 80, 80)"), true);
+    run("particles = []; spawnParticles(10, 10, '#fff', 12)");
+    assert.strictEqual(run("particles.some(p => p.effect === 'explosion')"), true);
+    run('particles = []');
+
+    run('shipsUnlocked = [true, true, true, true, true]');
+    for (let expected = 1; expected < 5; expected++) {
+        run('cycleSelectedShip(1)');
+        await waitFor('ShipSpriteManager.getActiveIndex() === ' + expected + ' && AssetManager.getStats().sharedAssets === 16');
+    }
+
+    assert.deepStrictEqual(Array.from(run('Object.keys(PHASE_DEFS)')), []);
+    assert.strictEqual(scriptTags.length, 0);
+
+    run('resetGame()');
+    assert.strictEqual(run('gameState'), 'LOADING');
+    run('draw()');
+    await waitFor("gameState === 'PLAYING'");
+    assert.deepStrictEqual(Array.from(run('Object.keys(PHASE_DEFS)')), ['1']);
+    assert.deepStrictEqual(scriptTags.map(tag => tag.dataset.levelAsset), ['1']);
+    assert.strictEqual(run('AssetManager.getStats().levelAssets'), 3);
+    assert.deepStrictEqual(Array.from(run("['phase1-boss','phase1-background'].map(key => !!AssetManager.getLevelImage(key))")), [true, true]);
+    assert.deepStrictEqual(Array.from(run("['normal','zigzag','tank'].map(type => !!AssetManager.getSharedImage(SHARED_ENEMY_SPRITES[type].key))")), [true, true, true]);
+    assert.strictEqual(run("drawAvailableEnemySprite({type:'normal',x:0,y:0,w:35,h:35})"), true);
+    assert.strictEqual(run("drawAvailableEnemySprite({type:'boss',x:0,y:0,w:150,h:100})"), true);
+
+    run('continueToNextLevel()');
+    await waitFor("gameState === 'LEVEL_TRANSITION' && currentLevel === 2");
+    assert.deepStrictEqual(Array.from(run('Object.keys(PHASE_DEFS)')), ['2']);
+    assert.deepStrictEqual(scriptTags.map(tag => tag.dataset.levelAsset), ['2']);
+    assert.strictEqual(run('AssetManager.getStats().levelAssets'), 1);
+    assert.strictEqual(run("!!AssetManager.getSharedImage(SHARED_ENEMY_SPRITES.normal.key)"), true);
+    assert.strictEqual(run("AssetManager.getLevelImage('phase1-boss')"), null);
+    assert.strictEqual(run("AssetManager.getLevelImage('phase1-background')"), null);
+    assert.strictEqual(run("drawAvailableEnemySprite({type:'normal',x:0,y:0,w:35,h:35})"), true);
+    assert.strictEqual(run("drawAvailableEnemySprite({type:'boss',x:0,y:0,w:150,h:100})"), false);
+
+    run("gameState = 'PLAYING'; continueToNextLevel()");
+    await waitFor("gameState === 'LEVEL_TRANSITION' && currentLevel === 3");
+    assert.deepStrictEqual(Array.from(run('Object.keys(PHASE_DEFS)')), ['3']);
+    assert.deepStrictEqual(scriptTags.map(tag => tag.dataset.levelAsset), ['3']);
+
+    run('retryLevel()');
+    await waitFor("gameState === 'LEVEL_TRANSITION' && currentLevel === 3");
+    assert.deepStrictEqual(Array.from(run('Object.keys(PHASE_DEFS)')), ['3']);
+    assert.strictEqual(scriptTags.length, 1);
+
+    run("gameState = 'PLAYING'; togglePause()");
+    assert.strictEqual(run('gameState'), 'PAUSED');
+    run('togglePause()');
+    assert.strictEqual(run('gameState'), 'PLAYING');
+
+    run("LevelManager.leaveTo('START')");
+    assert.strictEqual(run('gameState'), 'START');
+    assert.deepStrictEqual(Array.from(run('Object.keys(PHASE_DEFS)')), []);
+    assert.strictEqual(scriptTags.length, 0);
+    assert.strictEqual(run('enemies.length + bullets.length + enemyBullets.length + particles.length + powerups.length'), 0);
+
+    // Exercita os handlers reais de PC e celular no botão JOGAR.
+    run('draw()');
+    const playButton = run('uiButtons.playButton');
+    const pointerEvent = {
+        clientX: playButton.x + playButton.w / 2,
+        clientY: playButton.y + playButton.h / 2
+    };
+    if (testWidth <= 480) {
+        canvasListeners.touchstart({ preventDefault: noop, touches: [pointerEvent] });
+    } else {
+        canvasListeners.mousedown(pointerEvent);
+    }
+    await waitFor("gameState === 'PLAYING'");
+    assert.strictEqual(run('currentLevel'), 1);
+    run("LevelManager.leaveTo('START')");
+
+    run("PHASE_MANIFEST[2].script = 'js/phases/inexistente.js'; startFromLevel(2)");
+    await waitFor("gameState === 'LOADING' && !!LoadingScreen.error");
+    assert.strictEqual(run("typeof LoadingScreen.retryAction"), 'function');
+    run("PHASE_MANIFEST[2].script = 'js/phases/phase2.js'; LoadingScreen.retry()");
+    await waitFor("gameState === 'LEVEL_TRANSITION' && currentLevel === 2");
+    assert.deepStrictEqual(Array.from(run('Object.keys(PHASE_DEFS)')), ['2']);
+    assert.strictEqual(scriptTags.length, 1);
+
+    console.log('LAYOUT ' + testWidth + 'px: PASS');
+    console.log('MENU -> FASE 1: PASS');
+    console.log('FASE 1 -> 2 -> 3: PASS');
+    console.log('RETRY / PAUSE / MENU: PASS');
+    console.log('ERRO + TENTAR NOVAMENTE: PASS');
+    console.log('SOMENTE UMA FASE NA MEMÓRIA: PASS');
+})().catch(error => {
+    console.error(error);
+    process.exit(1);
+});

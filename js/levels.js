@@ -52,6 +52,7 @@ function setupLevel(level) {
     const phase = getPhase(level);
     enemiesToKill = phase.enemiesToKill || (12 + level * 3);
     levelDecor = generateLevelDecor(level);
+    if (typeof resetPhaseHazards === 'function') resetPhaseHazards();
     resetPhaseObjectives();
     phaseScoreStart = score;
     if (typeof setMusicForLevel === 'function') setMusicForLevel(level);
@@ -230,7 +231,7 @@ function buildPlayer() {
         shootCooldown: 0,
         fireRateBonus: permanentUpgrades.firerate,
         shipType: shipIdx,
-        bulletDmg: ship.bulletDmg || 1
+        bulletDmg: (ship.bulletDmg || 1) + permanentUpgrades.damage
     };
 }
 
@@ -244,43 +245,115 @@ function clearCombatState() {
     bossActive = false;
 }
 
-function resetGame() {
-    score = 0;
-    resetCombo();
-    maxComboReached = 0;
-    lastRunStars = null;
-    lastCreditsEarned = 0;
-    runCreditsEarned = 0;
-    continuousRun = true;
+// Limpa somente o estado pertencente à fase. Listeners, HUD, canvas, save e
+// loop principal são globais e permanecem instalados uma única vez.
+function cleanupLevelRuntime() {
     clearCombatState();
-    player = buildPlayer();
-    setupLevel(1);
-    resetRescues();
-    if (!tutorialSeen) {
-        gameState = 'TUTORIAL';
-    } else {
-        gameState = 'PLAYING';
+    levelDecor = [];
+    enemySpawnTimer = 0;
+    levelTransitionTimer = 0;
+    hitStopFrames = 0;
+    shakeTime = 0;
+    keys = {};
+    isTouching = false;
+    touchX = null;
+    touchY = null;
+    if (typeof resetPhaseHazards === 'function') resetPhaseHazards();
+    if (typeof clearLevelAudio === 'function') clearLevelAudio();
+}
+
+const LevelManager = (() => {
+    let transitionId = 0;
+
+    function prepareNewRun(level) {
+        score = 0;
+        resetCombo();
+        maxComboReached = 0;
+        lastRunStars = null;
+        lastCreditsEarned = 0;
+        runCreditsEarned = 0;
+        continuousRun = level === 1;
+        player = buildPlayer();
     }
-    initAudio();
+
+    async function start(level, mode) {
+        level = Math.max(1, Math.min(MAX_LEVEL, level | 0));
+        const myTransition = ++transitionId;
+        const loadingStartedAt = Date.now();
+        const retry = () => start(level, mode);
+        LoadingScreen.begin(level, retry);
+        gameState = 'LOADING';
+
+        const previousLevel = AssetManager.getActiveLevel();
+        cleanupLevelRuntime();
+        if (previousLevel !== null) AssetManager.unloadLevel(previousLevel);
+
+        try {
+            await AssetManager.loadLevel(level, (progress, detail) => {
+                if (myTransition === transitionId) LoadingScreen.setProgress(progress, detail);
+            });
+            if (myTransition !== transitionId) {
+                AssetManager.unloadLevel(level);
+                return;
+            }
+
+            // Exibe brevemente o estado final. A porcentagem continua sendo
+            // atualizada apenas quando recursos reais ficam prontos.
+            const remainingDisplayTime = Math.max(0, 420 - (Date.now() - loadingStartedAt));
+            if (remainingDisplayTime > 0) {
+                await new Promise(resolve => setTimeout(resolve, remainingDisplayTime));
+            }
+            if (myTransition !== transitionId) {
+                AssetManager.unloadLevel(level);
+                return;
+            }
+
+            if (mode === 'continue') {
+                continuousRun = true;
+                resetCombo();
+                player.health = Math.min(player.maxHealth, player.health + 1);
+            } else {
+                prepareNewRun(level);
+            }
+
+            setupLevel(level);
+            if (typeof resetRescues === 'function') resetRescues();
+            if (typeof resetPhaseRescues === 'function') resetPhaseRescues();
+            initAudio();
+
+            if (mode === 'new-game') {
+                gameState = tutorialSeen ? 'PLAYING' : 'TUTORIAL';
+            } else {
+                gameState = 'LEVEL_TRANSITION';
+                levelTransitionTimer = mode === 'continue' ? 100 : 110;
+                if (mode === 'continue') playSound(400, 0.1, 'sine', 0.08);
+            }
+        } catch (error) {
+            if (myTransition !== transitionId) return;
+            LoadingScreen.fail(error);
+            gameState = 'LOADING';
+        }
+    }
+
+    function leaveTo(state) {
+        transitionId++;
+        cleanupLevelRuntime();
+        const active = AssetManager.getActiveLevel();
+        if (active !== null) AssetManager.unloadLevel(active);
+        gameState = state || 'START';
+    }
+
+    return { start, leaveTo };
+})();
+
+function resetGame() {
+    LevelManager.start(1, 'new-game');
 }
 
 // Começa numa fase já desbloqueada (run nova daquela fase — score zera,
 // mas créditos de fases anteriores já foram pagos ao limpar cada uma).
 function startFromLevel(level) {
-    score = 0;
-    resetCombo();
-    maxComboReached = 0;
-    lastRunStars = null;
-    lastCreditsEarned = 0;
-    runCreditsEarned = 0;
-    continuousRun = false;
-    clearCombatState();
-    player = buildPlayer();
-    setupLevel(level);
-    resetRescues();
-    gameState = 'LEVEL_TRANSITION';
-    levelTransitionTimer = 110;
-    initAudio();
+    LevelManager.start(level, 'selected');
 }
 
 // Continua a run após PHASE_RESULT (mantém score, vida e upgrades da partida)
@@ -290,15 +363,7 @@ function continueToNextLevel() {
         finishRun(true);
         return;
     }
-    continuousRun = true;
-    resetCombo();
-    clearCombatState();
-    player.health = Math.min(player.maxHealth, player.health + 1);
-    setupLevel(next);
-    if (typeof resetPhaseRescues === 'function') resetPhaseRescues();
-    gameState = 'LEVEL_TRANSITION';
-    levelTransitionTimer = 100;
-    playSound(400, 0.1, 'sine', 0.08);
+    LevelManager.start(next, 'continue');
 }
 
 // Repete a mesma fase (game over ou resultado)

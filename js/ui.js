@@ -274,7 +274,7 @@ function drawShopScreen() {
     ctx.fillStyle = '#0a0';
     ctx.fillText('Upgrades permanentes — toque numa linha para comprar', W / 2, 142);
 
-    let y = 190;
+    let y = 175;
     uiButtons.shopRows = [];
     PERMANENT_UPGRADE_DEFS.forEach(def => {
         const level = permanentUpgrades[def.key] || 0;
@@ -282,7 +282,7 @@ function drawShopScreen() {
         const cost = upgradeCost(def);
         const affordable = credits >= cost;
 
-        const rowRect = { x: 30, y: y - 34, w: W - 60, h: 62 };
+        const rowRect = { x: 30, y: y - 24, w: W - 60, h: 48 };
         uiButtons.shopRows.push(rowRect);
 
         ctx.fillStyle = maxed ? 'rgba(0,255,255,0.08)' : (affordable ? 'rgba(255,255,0,0.08)' : 'rgba(255,255,255,0.04)');
@@ -315,7 +315,7 @@ function drawShopScreen() {
         ctx.textAlign = 'center';
         ctx.fillText(level + '/' + def.max, barX + barW / 2, y - 22);
 
-        y += 78;
+        y += 60;
     });
 
     // ---- Naves alternativas (desbloqueio único, não é "nível") ----
@@ -324,9 +324,9 @@ function drawShopScreen() {
         const shipDef = SHIP_DEFS[shipIdx];
         const shipOwned = shipsUnlocked[shipIdx];
         const shipAffordable = credits >= shipDef.unlockCost;
-        const hotkey = String(4 + pos);
+        const hotkey = String(7 + pos);
 
-        const shipRowRect = { x: 30, y: y - 34, w: W - 60, h: 62 };
+        const shipRowRect = { x: 30, y: y - 24, w: W - 60, h: 48 };
         uiButtons.shipUnlockRows.push(shipOwned ? null : shipRowRect);
 
         ctx.fillStyle = shipOwned ? 'rgba(255,255,255,0.06)' : (shipAffordable ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.04)');
@@ -353,7 +353,7 @@ function drawShopScreen() {
         ctx.fillText(shipDef.desc, W - 40, y - 16);
         ctx.textAlign = 'center';
 
-        y += 78;
+        y += 60;
     });
 
     // ---- Botão voltar (tocável) ----
@@ -488,8 +488,8 @@ function drawLevelSelectScreen() {
         const y = startY + row * (cellH + gapY);
         const unlocked = i <= unlockedLevel;
         const best = unlocked ? getPhaseStars(diffKey, i) : 0;
-        const phase = getPhase(i);
-        const accent = (phase.boss && phase.boss.coreColor) || (unlocked ? '#0f0' : '#555');
+        const phase = typeof getPhaseMeta === 'function' ? getPhaseMeta(i) : getPhase(i);
+        const accent = phase.accent || (phase.boss && phase.boss.coreColor) || (unlocked ? '#0f0' : '#555');
 
         const cellRect = { x: x, y: y, w: cellW, h: cellH };
         uiButtons.levelCells.push(unlocked ? cellRect : null);

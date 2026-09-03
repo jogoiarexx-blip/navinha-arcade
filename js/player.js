@@ -63,8 +63,11 @@ window.addEventListener('keydown', (e) => {
         if (k === '1') purchaseUpgrade('life');
         else if (k === '2') purchaseUpgrade('firerate');
         else if (k === '3') purchaseUpgrade('shield');
-        else if (k >= '4' && k <= '9') {
-            const pos = k.charCodeAt(0) - '4'.charCodeAt(0);
+        else if (k === '4') purchaseUpgrade('damage');
+        else if (k === '5') purchaseUpgrade('rescuerange');
+        else if (k === '6') purchaseUpgrade('rescuespeed');
+        else if (k >= '7' && k <= '9') {
+            const pos = k.charCodeAt(0) - '7'.charCodeAt(0);
             if (LOCKABLE_SHIP_INDICES[pos] !== undefined) purchaseShipUnlock(LOCKABLE_SHIP_INDICES[pos]);
         }
         else if (k === 'escape' || k === 'backspace' || k === ' ') gameState = 'START';
@@ -80,13 +83,16 @@ window.addEventListener('keydown', (e) => {
         if (k === ' ' || k === 'enter' || k === 'escape') dismissTutorial();
     } else if (gameState === 'PHASE_RESULT') {
         if (k === ' ' || k === 'enter') continueToNextLevel();
-        else if (k === 'f') { phaseClearTimer = 240; gameState = 'LEVEL_SELECT'; }
-        else if (k === 'escape') gameState = 'START';
+        else if (k === 'f') { phaseClearTimer = 240; LevelManager.leaveTo('LEVEL_SELECT'); }
+        else if (k === 'escape') LevelManager.leaveTo('START');
     } else if (gameState === 'GAMEOVER') {
         if (k === 'r') retryLevel();
-        else if (k === ' ' || k === 'enter') gameState = 'START';
+        else if (k === ' ' || k === 'enter') LevelManager.leaveTo('START');
     } else if (gameState === 'STORY_COMPLETE') {
-        if (k === ' ' || k === 'enter') gameState = 'START';
+        if (k === ' ' || k === 'enter') LevelManager.leaveTo('START');
+    } else if (gameState === 'LOADING') {
+        if ((k === ' ' || k === 'enter') && LoadingScreen.error) LoadingScreen.retry();
+        else if (k === 'escape') LevelManager.leaveTo('START');
     } else if (gameState === 'PLAYING' || gameState === 'PAUSED') {
         if (k === 'p' || k === 'escape') togglePause();
     }
@@ -150,15 +156,17 @@ function handleMenuTap(px, py) {
         dismissTutorial();
     } else if (gameState === 'PHASE_RESULT') {
         if (pointInRect(px, py, uiButtons.phaseContinue)) { continueToNextLevel(); return; }
-        if (pointInRect(px, py, uiButtons.phaseSelect)) { phaseClearTimer = 240; gameState = 'LEVEL_SELECT'; return; }
-        if (pointInRect(px, py, uiButtons.phaseMenu)) { gameState = 'START'; return; }
+        if (pointInRect(px, py, uiButtons.phaseSelect)) { phaseClearTimer = 240; LevelManager.leaveTo('LEVEL_SELECT'); return; }
+        if (pointInRect(px, py, uiButtons.phaseMenu)) { LevelManager.leaveTo('START'); return; }
         continueToNextLevel();
     } else if (gameState === 'GAMEOVER') {
         if (pointInRect(px, py, uiButtons.retryBtn)) { retryLevel(); return; }
-        if (pointInRect(px, py, uiButtons.menuBtn)) { gameState = 'START'; return; }
-        gameState = 'START';
+        if (pointInRect(px, py, uiButtons.menuBtn)) { LevelManager.leaveTo('START'); return; }
+        LevelManager.leaveTo('START');
     } else if (gameState === 'STORY_COMPLETE') {
-        gameState = 'START';
+        LevelManager.leaveTo('START');
+    } else if (gameState === 'LOADING') {
+        if (LoadingScreen.error && pointInRect(px, py, uiButtons.loadingRetry)) LoadingScreen.retry();
     } else if (gameState === 'PAUSED') {
         togglePause();
     }
@@ -225,6 +233,9 @@ window.addEventListener('mouseup', () => {
 // para a partida atual (guardada em player.shipType ao criar o player).
 function drawPlayerShip() {
     const shipType = (player && typeof player.shipType === 'number') ? player.shipType : selectedShip;
+    const def = SHIP_DEFS[shipType] || SHIP_DEFS[0];
+    if (ShipSpriteManager.draw(shipType, player.x + player.w / 2, player.y + player.h / 2,
+        def.renderH || player.h, { glow: def.color, glowBlur: 5 })) return;
     if (shipType === 1) {
         drawPlayerShipPhantom();
     } else if (shipType === 2) {

@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Navinha Arcade - Fases</title>
+    <title>Navinha Arcade v1.8</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
-<canvas id="gameCanvas" width="480" height="720"></canvas>
+<div id="gameShell"><aside class="desktop-panel left"><b>NAVINHA ARCADE</b><span>WASD / Setas</span><span>Espaço: disparar</span><span>P: pausar</span><span>O: ajustes</span></aside><canvas id="gameCanvas" width="480" height="720"></canvas><aside class="desktop-panel right"><b>MISSÃO</b><span>10 fases</span><span>Chefes multiestágio</span><span>Resgates + estrelas</span><span>Power-ups especiais</span></aside></div><script>if (window.matchMedia && window.matchMedia("(min-width: 980px)").matches) { document.getElementById("gameCanvas").width = 1024; }</script>
 
 <!--
   O jogo é dividido em módulos dentro de js/, carregados em ordem de
@@ -18,26 +18,23 @@
   por causa das regras de CORS do navegador para o protocolo file://.
 -->
 <script src="js/core.js"></script>
-<!-- Um arquivo por fase: cada um define seu próprio tema visual e
-     chefe (nome, cores, padrão de ataque). PHASE_DEFS é declarado em
-     core.js, então precisa vir antes destes. -->
-<script src="js/phases/phase1.js"></script>
-<script src="js/phases/phase2.js"></script>
-<script src="js/phases/phase3.js"></script>
-<script src="js/phases/phase4.js"></script>
-<script src="js/phases/phase5.js"></script>
-<script src="js/phases/phase6.js"></script>
-<script src="js/phases/phase7.js"></script>
-<script src="js/phases/phase8.js"></script>
-<script src="js/phases/phase9.js"></script>
-<script src="js/phases/phase10.js"></script>
+<!-- O manifesto é leve. Os arquivos completos das fases agora são inseridos
+     pelo AssetManager somente quando o jogador inicia a missão. -->
+<script src="js/phase-manifest.js"></script>
 <script src="js/audio.js"></script>
+<script src="js/asset-manager.js"></script>
+<script src="js/ship-sprites.js"></script>
+<script src="js/powerup-sprites.js"></script>
+<script src="js/effect-sprites.js"></script>
+<script src="js/loading-screen.js"></script>
 <script src="js/levels.js"></script>
 <script src="js/player.js"></script>
 <script src="js/enemies.js"></script>
 <script src="js/rescue.js"></script>
 <script src="js/upgrades.js"></script>
 <script src="js/ui.js"></script>
+<script src="js/enhancements.js"></script>
+<script src="js/v12.js"></script>
 <script src="js/game.js"></script>
 </body>
 </html>

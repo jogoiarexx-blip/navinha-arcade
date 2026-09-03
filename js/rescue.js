@@ -12,9 +12,26 @@ let survivors = [];
 let survivorsRescued = 0;       // total resgatado na corrida atual
 let rescueSpawnTimer = 0;
 
-const RESCUE_HOLD_TIME = 50;    // frames parado em cima (~0.8s a 60fps)
+const RESCUE_HOLD_TIME = 50;    // frames parado em cima (~0.8s a 60fps), antes do upgrade de velocidade
 const RESCUE_SPAWN_MIN = 320;   // intervalo mínimo entre spawns (frames)
 const RESCUE_SPAWN_RANGE = 220; // variação aleatória
+const RESCUE_RANGE_PAD_PER_LEVEL = 14; // px extras em cada lado da nave por nível de "Alcance de Resgate"
+const RESCUE_SPEED_CUT_PER_LEVEL = 8;  // frames a menos por nível de "Velocidade de Resgate"
+
+// Tempo de permanência necessário para resgatar, já considerando o upgrade permanente de velocidade
+function effectiveRescueHoldTime() {
+    const level = (typeof permanentUpgrades !== 'undefined' && permanentUpgrades.rescuespeed) || 0;
+    return Math.max(18, RESCUE_HOLD_TIME - level * RESCUE_SPEED_CUT_PER_LEVEL);
+}
+
+// Retângulo de detecção do resgate: a nave "alcança" sobreviventes um pouco além do próprio corpo,
+// crescendo com o upgrade permanente de "Alcance de Resgate"
+function rescueReachRect() {
+    const level = (typeof permanentUpgrades !== 'undefined' && permanentUpgrades.rescuerange) || 0;
+    const pad = level * RESCUE_RANGE_PAD_PER_LEVEL;
+    if (pad <= 0) return player;
+    return { x: player.x - pad, y: player.y - pad, w: player.w + pad * 2, h: player.h + pad * 2 };
+}
 
 let _rescueLastPlayerX = null;
 let _rescueLastPlayerY = null;
@@ -86,6 +103,9 @@ function updateRescues() {
         rescueSpawnTimer = 0;
     }
 
+    const reachRect = rescueReachRect();
+    const holdTime = effectiveRescueHoldTime();
+
     for (let i = survivors.length - 1; i >= 0; i--) {
         const s = survivors[i];
         s.y += s.speed;
@@ -93,7 +113,7 @@ function updateRescues() {
         s.x += Math.sin(s.driftPhase) * 0.6;
         s.armWave += 0.15;
 
-        const shipOnTop = collide(player, s);
+        const shipOnTop = collide(reachRect, s);
 
         if (shipOnTop && isStopped) {
             s.rescueProgress++;
@@ -103,7 +123,7 @@ function updateRescues() {
             s.rescueProgress = Math.max(0, s.rescueProgress - 2);
         }
 
-        if (s.rescueProgress >= RESCUE_HOLD_TIME) {
+        if (s.rescueProgress >= holdTime) {
             survivorsRescued++;
             phaseSurvivorsRescued++;
             score += 60;
@@ -130,7 +150,14 @@ function drawSurvivor(s) {
     const cx = s.x + s.w / 2;
     const cy = s.y + s.h / 2;
 
-    ctx.save();
+    const spriteDrawn = typeof EffectSpriteManager !== 'undefined' &&
+        EffectSpriteManager.draw('survivor', cx, cy + Math.sin(s.armWave) * 1.5, 46, 46, {
+            rotation: Math.sin(s.armWave * 0.5) * 0.04,
+            glowBlur: 7
+        });
+
+    if (!spriteDrawn) {
+      ctx.save();
     ctx.translate(cx, cy);
 
     ctx.fillStyle = '#e6e6e6';
@@ -173,10 +200,11 @@ function drawSurvivor(s) {
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
-    ctx.restore();
+      ctx.restore();
+    }
 
     if (s.rescueProgress > 0) {
-        const frac = s.rescueProgress / RESCUE_HOLD_TIME;
+        const frac = s.rescueProgress / effectiveRescueHoldTime();
         const ringR = 22;
 
         ctx.strokeStyle = 'rgba(0,255,255,0.25)';

@@ -1,21 +1,37 @@
+
+:root { color-scheme: dark; }
+* { box-sizing: border-box; }
+html, body { width:100%; height:100%; }
 body {
-    background-color: #000;
-    color: #0f0;
-    text-align: center;
-    font-family: 'Courier New', Courier, monospace;
-    margin: 0;
-    padding: 10px;
-    overflow: hidden;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
+    background:
+      radial-gradient(circle at 50% 18%, rgba(25,74,110,.30), transparent 34%),
+      radial-gradient(circle at 18% 70%, rgba(68,22,104,.22), transparent 32%),
+      linear-gradient(180deg,#020610 0%,#00030a 55%,#000 100%);
+    color:#dff;
+    margin:0;
+    overflow:hidden;
+    font-family:Inter,Segoe UI,Arial,sans-serif;
+    display:flex;
+    align-items:center;
+    justify-content:center;
 }
+body::before { content:""; position:fixed; inset:0; pointer-events:none; opacity:.28; background-image:radial-gradient(circle,#fff 0 1px,transparent 1.4px); background-size:62px 62px; mask-image:linear-gradient(to bottom,#000,transparent 85%); }
+#gameShell { position:relative; display:grid; grid-template-columns:auto minmax(0,auto) auto; align-items:center; justify-content:center; gap:18px; width:100vw; height:100vh; padding:12px; }
 canvas {
-    background-color: #000;
-    box-shadow: 0 0 30px #0f0;
-    display: block;
-    max-width: 100%;
-    max-height: 95vh;
-    touch-action: none;
+    display:block;
+    width:auto;
+    height:auto;
+    max-width:calc(100vw - 350px);
+    max-height:96vh;
+    background:#000;
+    border:1px solid rgba(85,220,255,.48);
+    border-radius:16px;
+    box-shadow:0 0 0 1px rgba(255,255,255,.04),0 0 30px rgba(0,204,255,.25),0 0 100px rgba(86,42,180,.16),inset 0 0 50px rgba(0,0,0,.4);
+    touch-action:none;
 }
+.desktop-panel { width:145px; min-height:220px; padding:18px 14px; border:1px solid rgba(71,201,255,.22); border-radius:14px; background:linear-gradient(180deg,rgba(13,32,50,.70),rgba(3,8,17,.78)); backdrop-filter:blur(8px); color:#8095a8; font-size:11px; text-align:left; box-shadow:0 12px 40px rgba(0,0,0,.22),inset 0 1px rgba(255,255,255,.04); }
+.desktop-panel b { color:#72e9ff; display:block; margin-bottom:16px; font-size:12px; letter-spacing:1.3px; }
+.desktop-panel span { display:block; margin:11px 0; line-height:1.35; }
+@media (min-width:980px) and (max-width:1399px){ .desktop-panel{display:none} canvas{max-width:96vw;max-height:96vh} #gameShell{display:flex;padding:10px} }
+@media (max-width:979px){ #gameShell{display:flex;padding:0;width:100%;height:100%}.desktop-panel{display:none}canvas{max-width:100vw;max-height:100vh;border:0;border-radius:0;box-shadow:none} }
+@media (min-width:1400px) and (max-height:800px){ canvas{max-height:94vh} }

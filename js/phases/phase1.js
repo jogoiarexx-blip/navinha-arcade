@@ -5,6 +5,7 @@ PHASE_DEFS[1] = {
     bgBottom: '#000000',
     decor: 'none',
     decorAccent: '#3aa0ff',
+    hasImageBackground: true,
     enemiesToKill: 15,
     boss: {
         name: 'Sentinela Zero',

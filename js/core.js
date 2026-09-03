@@ -48,9 +48,9 @@ function clampInt(v, min, max, fallback) {
 
 // ---- Sanitizers por tipo de dado persistido ----
 const DEFAULT_STARS = { NORMAL: 0, DIFICIL: 0, INSANO: 0, INFERNO: 0 };
-const DEFAULT_UPGRADES = { life: 0, firerate: 0, shield: 0 };
+const DEFAULT_UPGRADES = { life: 0, firerate: 0, shield: 0, damage: 0, rescuerange: 0, rescuespeed: 0 };
 // Máximos alinhados com PERMANENT_UPGRADE_DEFS em upgrades.js
-const UPGRADE_MAX = { life: 3, firerate: 3, shield: 2 };
+const UPGRADE_MAX = { life: 3, firerate: 3, shield: 2, damage: 3, rescuerange: 3, rescuespeed: 3 };
 // Estrelas por fase (1–10): 0 a 3 por dificuldade
 const DEFAULT_PHASE_STARS = { NORMAL: null, DIFICIL: null, INSANO: null, INFERNO: null };
 
@@ -137,11 +137,14 @@ function starString3(n) {
 }
 
 function sanitizeUpgrades(raw) {
-    const out = { life: 0, firerate: 0, shield: 0 };
+    const out = { life: 0, firerate: 0, shield: 0, damage: 0, rescuerange: 0, rescuespeed: 0 };
     if (!isPlainObject(raw)) return out;
     out.life = clampInt(raw.life, 0, UPGRADE_MAX.life, 0);
     out.firerate = clampInt(raw.firerate, 0, UPGRADE_MAX.firerate, 0);
     out.shield = clampInt(raw.shield, 0, UPGRADE_MAX.shield, 0);
+    out.damage = clampInt(raw.damage, 0, UPGRADE_MAX.damage, 0);
+    out.rescuerange = clampInt(raw.rescuerange, 0, UPGRADE_MAX.rescuerange, 0);
+    out.rescuespeed = clampInt(raw.rescuespeed, 0, UPGRADE_MAX.rescuespeed, 0);
     return out;
 }
 
@@ -185,11 +188,15 @@ function sanitizeSelectedShip(raw) {
 // de cada nave (aplicadas em buildPlayer, em levels.js).
 const SHIP_DEFS = [
     { key: 'default', name: 'Interceptora', desc: 'Equilibrada, arma centralizada',
-      color: '#00aaff', w: 40, h: 50, speed: 6, healthBonus: 0, bulletDmg: 1 },
+      color: '#00aaff', w: 40, h: 50, renderH: 72, sprite: 'assets/ships/interceptora.webp', speed: 6, healthBonus: 0, bulletDmg: 1 },
     { key: 'phantom', name: 'Fantasma Branca', desc: 'Mais veloz e ágil, casco mais estreito',
-      color: '#f2f2f2', w: 34, h: 44, speed: 7.5, healthBonus: 0, bulletDmg: 1, unlockCost: 280 },
+      color: '#f2f2f2', w: 34, h: 44, renderH: 68, sprite: 'assets/ships/fantasma-branca.webp', speed: 7.5, healthBonus: 0, bulletDmg: 1, unlockCost: 280 },
     { key: 'juggernaut', name: 'Blindada Cinza', desc: 'Lenta e robusta, tiro com o dobro de dano',
-      color: '#9aa5b1', w: 50, h: 58, speed: 4.2, healthBonus: 1, bulletDmg: 2, unlockCost: 420 }
+      color: '#9aa5b1', w: 50, h: 58, renderH: 84, sprite: 'assets/ships/blindada-cinza.webp', speed: 4.2, healthBonus: 1, bulletDmg: 2, unlockCost: 420 },
+    { key: 'spectre', name: 'Espectro Violeta', desc: 'Ágil, pequena e focada em esquiva',
+      color: '#9d5cff', w: 32, h: 42, renderH: 68, sprite: 'assets/ships/espectro-violeta.webp', speed: 8.2, healthBonus: 0, bulletDmg: 1, unlockCost: 600 },
+    { key: 'phoenix', name: 'Fênix Solar', desc: 'Canhão pesado e casco reforçado',
+      color: '#ff7a18', w: 46, h: 54, renderH: 82, sprite: 'assets/ships/fenix-solar.webp', speed: 5.2, healthBonus: 1, bulletDmg: 3, unlockCost: 850 }
 ];
 
 // Índices das naves que precisam ser liberadas na loja (tudo que não é a 0)
@@ -306,7 +313,7 @@ let levelTransitionTimer = 0;
 let bossActive = false;
 
 // ================= REGISTRO DE FASES (MODO HISTÓRIA) =================
-// Cada fase (1 a 10) tem seu próprio arquivo em js/phases/faseN.js, que
+// Cada fase (1 a 10) tem seu próprio arquivo em js/phases/phaseN.js, que
 // preenche PHASE_DEFS[N] com tema visual (cores + decoração) e o chefe
 // daquela fase (nome, paleta, padrão de ataque, tamanho). Os arquivos de
 // fase são carregados logo depois deste, então PHASE_DEFS precisa
@@ -315,7 +322,8 @@ let PHASE_DEFS = {};
 
 function getPhase(level) {
     return PHASE_DEFS[level] || PHASE_DEFS[1] || {
-        name: 'Fase ' + level, bgTop: '#000', bgBottom: '#000', decor: 'none',
+        name: (typeof getPhaseMeta === 'function' ? getPhaseMeta(level).name : 'Fase ' + level),
+        bgTop: '#000', bgBottom: '#000', decor: 'none',
         boss: { name: 'Chefe', primaryColor: '#880000', secondaryColor: '#ff2222', coreColor: '#ff5555', pattern: 0, sizeScale: 1 }
     };
 }
@@ -333,21 +341,23 @@ function generateLevelDecor(level) {
     // Planeta/lua ao fundo: dá identidade instantânea à fase por um custo
     // baixíssimo (1 gradiente CRIADO UMA VEZ aqui e reaproveitado todo
     // frame — nunca recriado dentro do draw, que é o que pesa).
-    const planetSide = level % 2 === 0 ? 1 : -1; // alterna lado a cada fase
-    const px = W / 2 + planetSide * W * 0.62;
-    const py = H * (0.16 + (level % 3) * 0.05);
-    const pr = 95 + (level % 4) * 18;
-    let planetGrad = null;
-    if (ctx.createRadialGradient) {
-        planetGrad = ctx.createRadialGradient(px - pr * 0.3, py - pr * 0.3, pr * 0.1, px, py, pr);
-        planetGrad.addColorStop(0, accent);
-        planetGrad.addColorStop(0.55, phase.bgTop || '#111');
-        planetGrad.addColorStop(1, 'rgba(0,0,0,0)');
+    if (!phase.hasImageBackground) {
+        const planetSide = level % 2 === 0 ? 1 : -1; // alterna lado a cada fase
+        const px = W / 2 + planetSide * W * 0.62;
+        const py = H * (0.16 + (level % 3) * 0.05);
+        const pr = 95 + (level % 4) * 18;
+        let planetGrad = null;
+        if (ctx.createRadialGradient) {
+            planetGrad = ctx.createRadialGradient(px - pr * 0.3, py - pr * 0.3, pr * 0.1, px, py, pr);
+            planetGrad.addColorStop(0, accent);
+            planetGrad.addColorStop(0.55, phase.bgTop || '#111');
+            planetGrad.addColorStop(1, 'rgba(0,0,0,0)');
+        }
+        decor.push({
+            type: 'planet', x: px, y: py, r: pr, grad: planetGrad, color: accent,
+            driftSpeed: 0.05, twinklePhase: 0
+        });
     }
-    decor.push({
-        type: 'planet', x: px, y: py, r: pr, grad: planetGrad, color: accent,
-        driftSpeed: 0.05, twinklePhase: 0
-    });
 
     // Poeira/detritos leves em toda fase — camada extra de profundidade,
     // tão barata quanto as camadas de estrelas (só fillRect com alpha).
@@ -456,14 +466,25 @@ function collide(a, b) {
 }
 
 function spawnParticles(x, y, color, amount) {
+    if (amount >= 10) {
+        const explosionSize = amount >= 30 ? 96 : (amount >= 18 ? 68 : 48);
+        particles.push({
+            effect: 'explosion', x, y, size: explosionSize,
+            vx: 0, vy: 0, life: 18, maxLife: 18,
+            rotation: Math.random() * Math.PI * 2, color
+        });
+    }
     for (let i = 0; i < amount; i++) {
+        const life = 25 + Math.random() * 15;
         particles.push({
             x: x,
             y: y,
             size: Math.random() * 4 + 1,
             vx: (Math.random() - 0.5) * 7,
             vy: (Math.random() - 0.5) * 7,
-            life: 25 + Math.random() * 15,
+            life: life,
+            maxLife: life,
+            rotation: Math.random() * Math.PI * 2,
             color: color
         });
     }

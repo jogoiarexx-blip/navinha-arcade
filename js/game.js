@@ -3,6 +3,8 @@
 // concentra o tratamento de dano ao jogador e o laço de animação.
 // Carregado por último: depende de todos os outros módulos.
 
+let phaseBackgroundScroll = 0;
+
 function update() {
     if (lockMessageTimer > 0) lockMessageTimer--;
     if (phaseClearTimer > 0) phaseClearTimer--;
@@ -11,6 +13,7 @@ function update() {
     // Estrelas (3 camadas de paralaxe) e decoração de fundo da fase sempre
     // se movem, exceto pausado
     if (gameState !== 'PAUSED') {
+        if (currentLevel === 1) phaseBackgroundScroll += 0.0015;
         [starsFar, stars, starsNear].forEach(layer => {
             layer.forEach(s => {
                 s.y += s.speed;
@@ -67,7 +70,10 @@ function update() {
     if (keys['arrowup'] || keys['w']) player.y -= player.speed;
     if (keys['arrowdown'] || keys['s']) player.y += player.speed;
 
-    if (keys[' '] || isTouching) shoot();
+    if (keys[' '] || isTouching || (typeof controlMode !== 'undefined' && controlMode === 'MOUSE' && mouseHoverActive)) shoot();
+    if (player.overdriveTimer > 0) player.overdriveTimer--;
+    if (player.droneTimer > 0) player.droneTimer--;
+    if (typeof updatePhaseHazards === 'function') updatePhaseHazards();
 
     // Toque / mouse: segue X e Y
     if (touchX !== null) {
@@ -133,14 +139,15 @@ function update() {
                 const bDmg = bullets[i].dmg || 1;
                 bullets.splice(i, 1);
                 e.health -= bDmg;
-                e.hitFlash = 4;
-                spawnParticles(bx, by, '#fff', 4);
-                hitStopFrames = e.type === 'boss' ? 3 : 1;
+                e.hitFlash = e.type === 'boss' ? 2 : 3;
+                spawnParticles(bx, by, '#fff', e.type === 'boss' ? 1 : 3);
+                // v1.2: impactos normais no boss não congelam mais o loop.
+                hitStopFrames = e.type === 'boss' ? 0 : 1;
 
                 if (e.health <= 0) {
                     playExplosion();
                     shakeTime = e.type === 'boss' ? 18 : (e.type === 'tank' ? 10 : 6);
-                    hitStopFrames = e.type === 'boss' ? 8 : 2;
+                    hitStopFrames = e.type === 'boss' ? 2 : 1;
 
                     const scoreTable = {
                         boss: 500, shooter: 25, tank: 30, spinner: 20,
@@ -154,7 +161,7 @@ function update() {
 
                     spawnParticles(e.x + e.w / 2, e.y + e.h / 2,
                         e.type === 'boss' ? '#f00' : (e.type === 'tank' ? '#fa0' : '#ff0'),
-                        e.type === 'boss' ? 60 : (e.type === 'tank' ? 22 : 15));
+                        e.type === 'boss' ? 38 : (e.type === 'tank' ? 18 : 12));
 
                     if (e.type === 'splitter') {
                         spawnEnemyOfType('splitter_mini', e.x + e.w / 2 - 24, e.y + e.h / 2);
@@ -162,7 +169,7 @@ function update() {
                     }
 
                     if (e.type !== 'boss') {
-                        maybeSpawnPowerup(e.x + e.w / 2 - 11, e.y + e.h / 2);
+                        maybeSpawnPowerup(e.x + e.w / 2 - 17, e.y + e.h / 2 - 17);
                     }
 
                     if (e.type === 'boss') {
@@ -190,8 +197,8 @@ function update() {
 
     powerups.forEach(p => {
         // Ímã leve se o upgrade permanente existir no futuro / ou sempre fraco perto
-        const dx = (player.x + player.w / 2) - (p.x + 11);
-        const dy = (player.y + player.h / 2) - (p.y + 11);
+        const dx = (player.x + player.w / 2) - (p.x + p.w / 2);
+        const dy = (player.y + player.h / 2) - (p.y + p.h / 2);
         const dist = Math.hypot(dx, dy);
         if (dist < 90) {
             p.x += dx * 0.04;
@@ -206,7 +213,9 @@ function update() {
         if (collide(player, powerups[i])) {
             const p = powerups[i];
             applyPowerup(p.type);
-            spawnParticles(p.x + 11, p.y + 11, '#0f0', 12);
+            const glow = typeof POWERUP_SPRITES !== 'undefined' && POWERUP_SPRITES[p.type]
+                ? POWERUP_SPRITES[p.type].glow : '#0f0';
+            spawnParticles(p.x + p.w / 2, p.y + p.h / 2, glow, 12);
             powerups.splice(i, 1);
         }
     }
@@ -214,9 +223,12 @@ function update() {
     updateRescues();
 
     particles.forEach(p => {
-        p.x += p.vx;
-        p.y += p.vy;
-        p.vy += 0.12;
+        if (p.effect !== 'explosion') {
+            p.x += p.vx;
+            p.y += p.vy;
+            p.vy += 0.12;
+        }
+        p.rotation = (p.rotation || 0) + (p.effect === 'explosion' ? 0.025 : 0.08);
         p.life--;
     });
     particles = particles.filter(p => p.life > 0);
@@ -339,6 +351,31 @@ function playerHit() {
     }
 }
 
+function drawPhaseBackground() {
+    if (currentLevel !== 1 || typeof AssetManager === 'undefined') return;
+    const image = AssetManager.getLevelImage('phase1-background');
+    if (!image || !image.complete) return;
+
+    const iw = image.naturalWidth || image.width;
+    const ih = image.naturalHeight || image.height;
+    if (!iw || !ih) return;
+
+    const scale = Math.max(W / iw, H / ih);
+    const drawW = iw * scale;
+    const drawH = ih * scale;
+    const maxPan = Math.max(0, drawH - H);
+    const panY = maxPan * (0.5 - 0.5 * Math.cos(phaseBackgroundScroll));
+
+    ctx.save();
+    ctx.globalAlpha = 0.9;
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(image, (W - drawW) / 2, -panY, drawW, drawH);
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = 'rgba(0, 0, 12, 0.18)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.restore();
+}
+
 function draw() {
     ctx.save();
     if (shakeTime > 0) {
@@ -360,6 +397,7 @@ function draw() {
     }
     ctx.fillRect(0, 0, W, H);
 
+    if (inGameplay) drawPhaseBackground();
     if (inGameplay) drawLevelDecor();
 
     ctx.fillStyle = '#557';
@@ -387,27 +425,52 @@ function draw() {
         drawLevelSelectScreen();
     } else if (gameState === 'STORY_COMPLETE') {
         drawStoryCompleteScreen();
+    } else if (gameState === 'LOADING') {
+        drawLoadingScreen();
+    } else if (gameState === 'SETTINGS') {
+        drawSettingsScreen();
+    } else if (gameState === 'ACHIEVEMENTS') {
+        drawAchievementsScreen();
     } else {
         if (player && player.w && (player.invincible <= 0 || Math.floor(player.invincible / 4) % 2 === 0)) {
             drawPlayerShip();
             if (player.shield > 0) {
-                ctx.strokeStyle = `rgba(0, 255, 255, ${0.45 + Math.sin(Date.now() / 90) * 0.25})`;
-                ctx.lineWidth = 3;
-                ctx.beginPath();
-                ctx.arc(player.x + player.w / 2, player.y + player.h / 2, 38, 0, Math.PI * 2);
-                ctx.stroke();
+                const shieldAlpha = 0.72 + Math.sin(Date.now() / 90) * 0.18;
+                const shieldDrawn = typeof EffectSpriteManager !== 'undefined' &&
+                    EffectSpriteManager.draw('shield', player.x + player.w / 2, player.y + player.h / 2,
+                        84, 84, { rotation: Date.now() / 2400, alpha: shieldAlpha, additive: true, glowBlur: 10 });
+                if (!shieldDrawn) {
+                    ctx.strokeStyle = `rgba(0, 255, 255, ${shieldAlpha})`;
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.arc(player.x + player.w / 2, player.y + player.h / 2, 38, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
             }
         }
 
-        ctx.fillStyle = '#0ff';
-        ctx.shadowColor = '#0ff';
-        ctx.shadowBlur = 12;
-        bullets.forEach(b => ctx.fillRect(b.x, b.y, b.w, b.h));
-        ctx.shadowBlur = 0;
+        bullets.forEach(b => {
+            const angle = Math.atan2(b.vx || 0, b.speed || 10);
+            const drawn = typeof EffectSpriteManager !== 'undefined' &&
+                EffectSpriteManager.draw('playerBullet', b.x + b.w / 2, b.y + b.h / 2,
+                    Math.max(11, b.w * 1.9), Math.max(28, b.h * 1.9),
+                    { rotation: angle, additive: true, glowBlur: 7 });
+            if (!drawn) {
+                ctx.fillStyle = '#0ff';
+                ctx.fillRect(b.x, b.y, b.w, b.h);
+            }
+        });
 
         enemyBullets.forEach(b => {
-            ctx.fillStyle = b.color || '#f0f';
-            ctx.fillRect(b.x, b.y, b.w, b.h);
+            const angle = Math.atan2(-(b.vx || 0), Math.abs(b.speed || 5));
+            const drawn = typeof EffectSpriteManager !== 'undefined' &&
+                EffectSpriteManager.draw('enemyBullet', b.x + b.w / 2, b.y + b.h / 2,
+                    Math.max(12, b.w * 1.8), Math.max(28, b.h * 1.8),
+                    { rotation: angle, additive: true, glow: b.color || '#ff287e', glowBlur: 7 });
+            if (!drawn) {
+                ctx.fillStyle = b.color || '#f0f';
+                ctx.fillRect(b.x, b.y, b.w, b.h);
+            }
         });
 
         enemies.forEach(e => {
@@ -427,13 +490,38 @@ function draw() {
             }
         });
 
+        if (typeof drawPhaseHazards === 'function') drawPhaseHazards();
         drawPowerups();
         drawRescues();
 
         particles.forEach(p => {
-            ctx.globalAlpha = Math.max(0, p.life / 40);
-            ctx.fillStyle = p.color;
-            ctx.fillRect(p.x, p.y, p.size, p.size);
+            const lifeFrac = Math.max(0, p.life / (p.maxLife || 40));
+            let drawn = false;
+            if (typeof EffectSpriteManager !== 'undefined' && p.effect === 'explosion') {
+                const progress = 1 - lifeFrac;
+                const size = p.size * (0.48 + progress * 0.82);
+                drawn = EffectSpriteManager.draw('explosion', p.x, p.y, size, size, {
+                    rotation: p.rotation || 0,
+                    alpha: Math.min(1, lifeFrac * 1.6),
+                    additive: true,
+                    glow: p.color,
+                    glowBlur: 12
+                });
+            } else if (typeof EffectSpriteManager !== 'undefined') {
+                const size = Math.max(5, p.size * 2.5);
+                drawn = EffectSpriteManager.draw('particle', p.x, p.y, size, size, {
+                    rotation: p.rotation || 0,
+                    alpha: lifeFrac,
+                    additive: true,
+                    glow: p.color,
+                    glowBlur: 4
+                });
+            }
+            if (!drawn) {
+                ctx.globalAlpha = lifeFrac;
+                ctx.fillStyle = p.color;
+                ctx.fillRect(p.x, p.y, p.size, p.size);
+            }
         });
         ctx.globalAlpha = 1;
 
@@ -446,8 +534,11 @@ function draw() {
         if (gameState === 'TUTORIAL') drawTutorialOverlay();
     }
 
-    // Botão de mute sempre visível
-    drawMuteButton();
+    if (typeof flashOverlay !== 'undefined' && flashOverlay > 0) { ctx.fillStyle='rgba(255,255,255,' + Math.min(.45, flashOverlay/22) + ')'; ctx.fillRect(0,0,W,H); flashOverlay--; }
+    if (typeof drawAchievementToast === 'function') drawAchievementToast();
+    if (typeof achievementToastTimer !== 'undefined' && achievementToastTimer > 0) achievementToastTimer--;
+    // Durante o loading o toque fica reservado ao botão de nova tentativa.
+    if (gameState !== 'LOADING') drawMuteButton();
 
     ctx.restore();
 }

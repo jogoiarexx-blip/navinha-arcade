@@ -2,6 +2,23 @@
 // Efeitos sonoros e trilha (Web Audio API). Respeita soundMuted.
 
 let audioCtx;
+const levelAudioTimers = new Set();
+
+function scheduleLevelSound(callback, delay) {
+    const timer = setTimeout(() => {
+        levelAudioTimers.delete(timer);
+        callback();
+    }, delay);
+    levelAudioTimers.add(timer);
+    return timer;
+}
+
+function clearLevelAudio() {
+    levelAudioTimers.forEach(timer => clearTimeout(timer));
+    levelAudioTimers.clear();
+    noteIndex = 0;
+    bassIndex = 0;
+}
 
 function initAudio() {
     try {
@@ -60,7 +77,7 @@ function playExplosion() {
 function playStarJingle(stars) {
     const notes = [523, 659, 784, 1046];
     for (let i = 0; i < Math.min(stars, notes.length); i++) {
-        setTimeout(() => playSound(notes[i], 0.22, 'sine', 0.1), i * 120);
+        scheduleLevelSound(() => playSound(notes[i], 0.22, 'sine', 0.1), i * 120);
     }
 }
 

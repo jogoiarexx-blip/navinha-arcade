@@ -78,16 +78,27 @@ function spawnPowerup(x, y) {
     else bag.push('shield');
     const type = bag[Math.floor(Math.random() * bag.length)];
     powerups.push({
-        x: x, y: y, w: 22, h: 22,
+        x: x, y: y, w: 34, h: 34,
         type: type, speed: 2.0, life: 420
     });
 }
 
 function drawPowerups() {
     powerups.forEach(p => {
+        const centerX = p.x + p.w / 2;
+        const centerY = p.y + p.h / 2;
+        const pulse = 1 + Math.sin(Date.now() / 130 + p.y * 0.04) * 0.08;
+        const alpha = p.life < 90 && Math.floor(p.life / 6) % 2 === 0 ? 0.4 : 1;
+        if (typeof PowerupSpriteManager !== 'undefined' &&
+            PowerupSpriteManager.draw(p.type, centerX, centerY, 46 * pulse, Date.now() / 1100, alpha)) {
+            return;
+        }
+
+        // Fallback leve enquanto a imagem ainda termina de carregar.
         ctx.save();
-        ctx.translate(p.x + 11, p.y + 11);
+        ctx.translate(centerX, centerY);
         ctx.rotate(Date.now() / 300);
+        ctx.globalAlpha = alpha;
 
         if (p.type === 'health') {
             ctx.fillStyle = '#0f0';
@@ -125,9 +136,12 @@ function registerKill(basePoints) {
 
 // ---- Loja de upgrades permanentes (persistem entre partidas) ----
 const PERMANENT_UPGRADE_DEFS = [
-    { key: 'life',     label: 'Vida Máxima +1',     costBase: 100, max: 3, hotkey: '1' },
-    { key: 'firerate', label: 'Cadência de Tiro',   costBase: 140, max: 3, hotkey: '2' },
-    { key: 'shield',   label: 'Escudo Inicial +1',  costBase: 180, max: 2, hotkey: '3' }
+    { key: 'life',        label: 'Vida Máxima +1',       costBase: 100, max: 3, hotkey: '1' },
+    { key: 'firerate',    label: 'Cadência de Tiro',     costBase: 140, max: 3, hotkey: '2' },
+    { key: 'shield',      label: 'Escudo Inicial +1',    costBase: 180, max: 2, hotkey: '3' },
+    { key: 'damage',      label: 'Dano dos Tiros +1',    costBase: 200, max: 3, hotkey: '4' },
+    { key: 'rescuerange', label: 'Alcance de Resgate',   costBase: 130, max: 3, hotkey: '5' },
+    { key: 'rescuespeed', label: 'Velocidade de Resgate',costBase: 150, max: 3, hotkey: '6' }
 ];
 
 function upgradeCost(def) {
@@ -149,6 +163,7 @@ function purchaseShipUnlock(index) {
     credits -= def.unlockCost;
     shipsUnlocked[index] = true;
     selectedShip = index;
+    ShipSpriteManager.select(selectedShip);
     safeSet('navinhaCredits', credits);
     safeSet('navinhaShipsUnlocked', shipsUnlocked);
     safeSet('navinhaSelectedShip', selectedShip);
@@ -165,6 +180,7 @@ function cycleSelectedShip(delta) {
         idx = (idx + delta + n) % n;
         if (shipsUnlocked[idx]) {
             selectedShip = idx;
+            ShipSpriteManager.select(selectedShip);
             safeSet('navinhaSelectedShip', selectedShip);
             playSound(300, 0.05, 'square', 0.06);
             return;

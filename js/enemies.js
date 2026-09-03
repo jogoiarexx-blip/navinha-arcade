@@ -643,9 +643,79 @@ function drawBossTelegraph(e) {
     ctx.restore();
 }
 
+// Estes três modelos aparecem em várias fases; por isso são recursos
+// compartilhados, carregados uma única vez e reutilizados sem duplicação.
+const SHARED_ENEMY_SPRITES = {
+    normal: {
+        key: 'enemy-normal-shared', file: 'assets/enemies/shared/patrulheiro-rubro.webp',
+        width: 2.05, height: 2.05, glow: '#ff3b28'
+    },
+    zigzag: {
+        key: 'enemy-zigzag-shared', file: 'assets/enemies/shared/interceptador-zigzag.webp',
+        width: 2.20, height: 2.10, glow: '#ff2ca8'
+    },
+    tank: {
+        key: 'enemy-tank-shared', file: 'assets/enemies/shared/blindado-bronze.webp',
+        width: 1.85, height: 1.85, glow: '#ff9d2e'
+    }
+};
+
+Object.keys(SHARED_ENEMY_SPRITES).forEach(type => {
+    const def = SHARED_ENEMY_SPRITES[type];
+    AssetManager.loadSharedImage(def.key, def.file).catch(error => {
+        console.warn('[EnemySpriteManager] fallback Canvas para ' + type, error);
+    });
+});
+
+const PHASE1_BOSS_SPRITE = {
+    key: 'phase1-boss', width: 1.18, height: 1.22, glow: '#ff3028'
+};
+
+function drawAvailableEnemySprite(e) {
+    let spriteDef = SHARED_ENEMY_SPRITES[e.type];
+    let image = spriteDef ? AssetManager.getSharedImage(spriteDef.key) : null;
+
+    // Chefes não são compartilhados: cada fase mantém sua identidade própria.
+    if (e.type === 'boss' && currentLevel === 1) {
+        spriteDef = PHASE1_BOSS_SPRITE;
+        image = AssetManager.getLevelImage(spriteDef.key);
+    }
+    if (!spriteDef) return false;
+    if (!image || !image.naturalWidth || !image.naturalHeight) return false;
+
+    const maxWidth = e.w * spriteDef.width;
+    const maxHeight = e.h * spriteDef.height;
+    const ratio = image.naturalWidth / image.naturalHeight;
+    let drawWidth = maxWidth;
+    let drawHeight = drawWidth / ratio;
+    if (drawHeight > maxHeight) {
+        drawHeight = maxHeight;
+        drawWidth = drawHeight * ratio;
+    }
+
+    ctx.save();
+    ctx.imageSmoothingEnabled = true;
+    ctx.shadowColor = spriteDef.glow;
+    ctx.shadowBlur = e.type === 'boss' ? 12 : 4;
+    ctx.drawImage(image,
+        e.x + e.w / 2 - drawWidth / 2,
+        e.y + e.h / 2 - drawHeight / 2,
+        drawWidth, drawHeight);
+    ctx.restore();
+    return true;
+}
+
 function drawEnemy(e) {
     const cx = e.x + e.w / 2;
     const cy = e.y + e.h / 2;
+
+    if (drawAvailableEnemySprite(e)) {
+        if (e.type === 'boss') {
+            drawBossNameAndHealthBar(e);
+            drawBossTelegraph(e);
+        }
+        return;
+    }
 
     if (e.type === 'boss') {
         // ---- Chefe: a silhueta depende da "família" definida na fase
