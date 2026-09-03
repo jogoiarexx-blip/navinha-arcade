@@ -14,19 +14,19 @@ if (!GRAPHICS_MODES.includes(graphicsMode)) graphicsMode = 'AUTOMATICO';
 
 const GRAPHICS_PROFILES = {
   BAIXO: {
-    label:'BAIXO', canvasWidth:640, renderFps:30,
-    stars:[30,38,14], particleScale:.28, particleCap:55, decorScale:.42,
+    label:'BAIXO', renderFps:24, renderScale:.5, mobileScale:.75,
+    stars:[12,18,6], particleScale:.12, particleCap:24, decorScale:.15,
     glows:false, additive:false, spriteParticles:false, spriteExplosions:false,
     spriteBullets:false, animatedBackground:false, bossFlash:false
   },
   MEDIO: {
-    label:'MÉDIO', canvasWidth:800, renderFps:45,
-    stars:[52,68,25], particleScale:.58, particleCap:125, decorScale:.7,
+    label:'MÉDIO', renderFps:40, renderScale:.75, mobileScale:.9,
+    stars:[38,50,18], particleScale:.45, particleCap:90, decorScale:.55,
     glows:true, glowCap:4, additive:false, spriteParticles:false, spriteExplosions:true,
     spriteBullets:true, animatedBackground:true, bossFlash:true
   },
   ALTO: {
-    label:'ALTO', canvasWidth:1024, renderFps:60,
+    label:'ALTO', renderFps:60, renderScale:1, mobileScale:1,
     stars:[90,110,50], particleScale:1, particleCap:260, decorScale:1,
     glows:true, glowCap:18, additive:true, spriteParticles:true, spriteExplosions:true,
     spriteBullets:true, animatedBackground:true, bossFlash:true
@@ -40,6 +40,7 @@ const GraphicsManager = (() => {
     ((cores <= 8 || memory <= 8) ? 'MEDIO' : 'ALTO');
   let automaticQuality = automaticCeiling;
   let drawCostAverage = 0;
+  let frameTimeAverage = 0;
   let samples = 0;
   let lastAdjustment = 0;
 
@@ -51,11 +52,24 @@ const GraphicsManager = (() => {
 
   function applyCanvasSize() {
     const mobile = window.matchMedia && window.matchMedia('(max-width: 979px)').matches;
-    const desiredWidth = mobile ? 480 : profile().canvasWidth;
-    if (canvas.width !== desiredWidth) canvas.width = desiredWidth;
-    if (canvas.height !== 720) canvas.height = 720;
-    W = canvas.width;
-    H = canvas.height;
+    const logicalWidth = mobile ? 480 : 1024;
+    const logicalHeight = 720;
+    const scale = mobile ? profile().mobileScale : profile().renderScale;
+    const backingWidth = Math.max(240, Math.round(logicalWidth * scale));
+    const backingHeight = Math.max(360, Math.round(logicalHeight * scale));
+    if (canvas.width !== backingWidth) canvas.width = backingWidth;
+    if (canvas.height !== backingHeight) canvas.height = backingHeight;
+    W = logicalWidth;
+    H = logicalHeight;
+    // O jogo continua trabalhando nas mesmas coordenadas lógicas. Somente a
+    // quantidade de pixels físicos processada pela GPU/CPU é reduzida.
+    ctx.setTransform(scale, 0, 0, scale, 0, 0);
+    ctx.imageSmoothingEnabled = false;
+    if (canvas.style) {
+      canvas.style.width = logicalWidth + 'px';
+      canvas.style.height = 'auto';
+    }
+    if (typeof PixiRenderer !== 'undefined') PixiRenderer.resize();
   }
 
   function refreshScene() {
@@ -80,26 +94,33 @@ const GraphicsManager = (() => {
     setMode(GRAPHICS_MODES[(GRAPHICS_MODES.indexOf(graphicsMode) + 1) % GRAPHICS_MODES.length]);
   }
 
-  function recordDrawCost(milliseconds, now) {
-    if (graphicsMode !== 'AUTOMATICO' || !Number.isFinite(milliseconds)) return;
-    drawCostAverage = drawCostAverage ? drawCostAverage * .94 + milliseconds * .06 : milliseconds;
-    samples++;
+  function adjustAutomatic(now) {
+    if (graphicsMode !== 'AUTOMATICO') return;
     if (samples < 180 || now - lastAdjustment < 5000) return;
     samples = 0;
     const rank = qualityRank(automaticQuality);
     const ceiling = qualityRank(automaticCeiling);
     let next = automaticQuality;
-    if (drawCostAverage > 18 && rank > 0) next = ['BAIXO','MEDIO','ALTO'][rank - 1];
-    else if (drawCostAverage < 8 && rank < ceiling) next = ['BAIXO','MEDIO','ALTO'][rank + 1];
+    if ((frameTimeAverage > 22 || drawCostAverage > 15) && rank > 0) next = ['BAIXO','MEDIO','ALTO'][rank - 1];
+    else if (frameTimeAverage < 18.5 && drawCostAverage < 7 && rank < ceiling) next = ['BAIXO','MEDIO','ALTO'][rank + 1];
     if (next !== automaticQuality) {
       automaticQuality = next;
       fxQuality = automaticQuality === 'BAIXO' ? 'BAIXA' : 'ALTA';
       lastAdjustment = now;
-      if (typeof initStars === 'function') initStars();
-      if (typeof currentLevel !== 'undefined' && typeof generateLevelDecor === 'function') {
-        levelDecor = generateLevelDecor(currentLevel);
-      }
+      refreshScene();
     }
+  }
+
+  function recordFrame(milliseconds, now) {
+    if (graphicsMode !== 'AUTOMATICO' || document.hidden || !Number.isFinite(milliseconds)) return;
+    frameTimeAverage = frameTimeAverage ? frameTimeAverage * .94 + milliseconds * .06 : milliseconds;
+    samples++;
+    adjustAutomatic(now);
+  }
+
+  function recordDrawCost(milliseconds) {
+    if (graphicsMode !== 'AUTOMATICO' || !Number.isFinite(milliseconds)) return;
+    drawCostAverage = drawCostAverage ? drawCostAverage * .94 + milliseconds * .06 : milliseconds;
   }
 
   function displayLabel() {
@@ -107,7 +128,7 @@ const GraphicsManager = (() => {
   }
 
   applyCanvasSize();
-  return { profile, effective, setMode, cycle, recordDrawCost, displayLabel, refreshScene };
+  return { profile, effective, setMode, cycle, recordFrame, recordDrawCost, displayLabel, refreshScene };
 })();
 
 // Compatibilidade com otimizações antigas que consultavam fxQuality.
@@ -301,16 +322,17 @@ drawShopScreen = function(){
 
 function drawSettingsScreen(){
   ctx.fillStyle='#03060a';ctx.fillRect(0,0,W,H);ctx.textAlign='center';ctx.fillStyle='#0ff';ctx.font='bold 28px Courier New';ctx.fillText('CONFIGURAÇÕES',W/2,70);
+  const rendererStatus=typeof PixiRenderer!=='undefined'?' · '+PixiRenderer.statusLabel():'';
   const rows=[
     ['settingsSound','SOM',soundMuted?'DESLIGADO':'LIGADO'],
     ['settingsVibrate','VIBRAÇÃO',vibrateEnabled?'LIGADA':'DESLIGADA'],
     ['settingsControl','CONTROLE',controlMode],
-    ['settingsFx','GRÁFICOS',GraphicsManager.displayLabel()],
+    ['settingsFx','GRÁFICOS',GraphicsManager.displayLabel()+rendererStatus],
     ['settingsFullscreen','TELA CHEIA',document.fullscreenElement?'SAIR':'ATIVAR']
   ];
   let y=130;rows.forEach(([key,label,val])=>{const r={x:45,y,w:W-90,h:58};uiButtons[key]=r;ctx.fillStyle='rgba(0,255,255,.06)';ctx.fillRect(r.x,r.y,r.w,r.h);ctx.strokeStyle='#166';ctx.strokeRect(r.x,r.y,r.w,r.h);ctx.textAlign='left';ctx.fillStyle='#ddd';ctx.font='14px Courier New';ctx.fillText(label,r.x+16,r.y+23);ctx.textAlign='right';ctx.fillStyle='#0ff';ctx.font='bold 14px Courier New';ctx.fillText(val,r.x+r.w-16,r.y+35);ctx.textAlign='center';y+=72;});
   uiButtons.settingsBack={x:W/2-90,y:H-70,w:180,h:42};ctx.strokeStyle='#0f0';ctx.strokeRect(uiButtons.settingsBack.x,uiButtons.settingsBack.y,180,42);ctx.fillStyle='#0f0';ctx.font='bold 14px Courier New';ctx.fillText('← VOLTAR',W/2,H-43);
-  ctx.fillStyle='#688';ctx.font='11px Courier New';ctx.fillText('AUTO adapta · BAIXO 30 · MÉDIO 45 · ALTO 60 FPS',W/2,H-116);ctx.fillText('MOUSE: mover pelo cursor + tiro automático',W/2,H-100);ctx.fillText('TECLADO: WASD/setas + Espaço',W/2,H-84);
+  ctx.fillStyle='#688';ctx.font='11px Courier New';ctx.fillText('AUTO adapta · BAIXO 24 · MÉDIO 40 · ALTO 60 FPS',W/2,H-116);ctx.fillText('MOUSE: mover pelo cursor + tiro automático',W/2,H-100);ctx.fillText('TECLADO: WASD/setas + Espaço',W/2,H-84);
 }
 function drawAchievementsScreen(){
   ctx.fillStyle='#04030a';ctx.fillRect(0,0,W,H);ctx.textAlign='center';ctx.fillStyle='#ff0';ctx.font='bold 27px Courier New';ctx.fillText('CONQUISTAS',W/2,62);const got=ACHIEVEMENTS.filter(a=>achievements[a.key]).length;ctx.fillStyle='#0ff';ctx.font='14px Courier New';ctx.fillText(got+'/'+ACHIEVEMENTS.length+' desbloqueadas',W/2,90);let y=120;ACHIEVEMENTS.forEach(a=>{const ok=!!achievements[a.key];ctx.fillStyle=ok?'rgba(255,255,0,.08)':'rgba(255,255,255,.025)';ctx.fillRect(38,y,W-76,54);ctx.strokeStyle=ok?'#aa0':'#333';ctx.strokeRect(38,y,W-76,54);ctx.textAlign='left';ctx.fillStyle=ok?'#ff0':'#666';ctx.font='bold 13px Courier New';ctx.fillText((ok?'★ ':'☆ ')+a.name,50,y+21);ctx.font='11px Courier New';ctx.fillStyle=ok?'#aaa':'#555';ctx.fillText(a.desc,50,y+40);y+=62;});uiButtons.achievementsBack={x:W/2-90,y:H-58,w:180,h:40};ctx.textAlign='center';ctx.strokeStyle='#0f0';ctx.strokeRect(W/2-90,H-58,180,40);ctx.fillStyle='#0f0';ctx.fillText('← VOLTAR',W/2,H-33);}

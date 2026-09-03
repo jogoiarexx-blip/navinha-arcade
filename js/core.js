@@ -4,7 +4,9 @@
 // Deve ser carregado ANTES de qualquer outro script do jogo.
 
 const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
+// `desynchronized` reduz a fila entre CPU e compositor quando o navegador
+// oferece suporte. Navegadores antigos simplesmente ignoram essa opção.
+const ctx = canvas.getContext('2d', { alpha: true, desynchronized: true });
 // A resolução interna pode ser ajustada pelas opções gráficas enquanto o
 // jogador está no menu. As coordenadas continuam usando a mesma altura.
 let W = canvas.width;
@@ -375,7 +377,9 @@ function generateLevelDecor(level) {
         });
     }
 
-    if (phase.decor === 'nebula') {
+    // No perfil Baixo ficam somente planeta e poeira. Nebulosas, cristais e
+    // glows grandes ocupam muita área de rasterização em GPUs integradas.
+    if (decorScale >= 0.25 && phase.decor === 'nebula') {
         for (let i = 0; i < Math.max(3, Math.round(8 * decorScale)); i++) {
             decor.push({
                 type: 'blob', x: Math.random() * W, y: Math.random() * H,
@@ -384,7 +388,7 @@ function generateLevelDecor(level) {
                 twinklePhase: Math.random() * Math.PI * 2, twinkleSpeed: 0.008 + Math.random() * 0.012
             });
         }
-    } else if (phase.decor === 'asteroids') {
+    } else if (decorScale >= 0.25 && phase.decor === 'asteroids') {
         for (let i = 0; i < Math.max(3, Math.round(9 * decorScale)); i++) {
             decor.push({
                 type: 'asteroid', x: Math.random() * W, y: Math.random() * H,
@@ -392,7 +396,7 @@ function generateLevelDecor(level) {
                 rotSpeed: (Math.random() - 0.5) * 0.02
             });
         }
-    } else if (phase.decor === 'crystals') {
+    } else if (decorScale >= 0.25 && phase.decor === 'crystals') {
         for (let i = 0; i < Math.max(3, Math.round(9 * decorScale)); i++) {
             decor.push({
                 type: 'crystal', x: Math.random() * W, y: Math.random() * H,
@@ -400,7 +404,7 @@ function generateLevelDecor(level) {
                 twinklePhase: Math.random() * Math.PI * 2, twinkleSpeed: 0.03 + Math.random() * 0.04
             });
         }
-    } else if (phase.decor === 'core') {
+    } else if (decorScale >= 0.25 && phase.decor === 'core') {
         const spots = [
             { x: W / 2, y: H * 0.32, r: 190 },
             { x: W * 0.2, y: H * 0.75, r: 110 },

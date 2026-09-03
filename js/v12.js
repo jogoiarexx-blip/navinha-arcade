@@ -73,7 +73,8 @@ drawStartScreen=function(){
 
 // HUD/tiros com visual mais limpo e moderno.
 const _drawHUDV11=drawHUD;
-drawHUD=function(){_drawHUDV11();if(gameState==='PLAYING'){ctx.save();const vg=ctx.createLinearGradient(0,0,0,110);vg.addColorStop(0,'rgba(0,5,15,.34)');vg.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=vg;ctx.fillRect(0,0,W,110);ctx.restore();}};
+let _hudGradientV12=null;
+drawHUD=function(){_drawHUDV11();if(gameState==='PLAYING'){ctx.save();const low=typeof GraphicsManager!=='undefined'&&GraphicsManager.effective()==='BAIXO';if(low){ctx.fillStyle='rgba(0,5,15,.22)';}else{if(!_hudGradientV12){_hudGradientV12=ctx.createLinearGradient(0,0,0,110);_hudGradientV12.addColorStop(0,'rgba(0,5,15,.34)');_hudGradientV12.addColorStop(1,'rgba(0,0,0,0)');}ctx.fillStyle=_hudGradientV12;}ctx.fillRect(0,0,W,110);ctx.restore();}};
 
 // overlay de impacto curto sem freeze de lógica.
 const _drawEnemyV11=drawEnemy;

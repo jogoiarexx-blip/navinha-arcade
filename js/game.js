@@ -4,6 +4,19 @@
 // Carregado por último: depende de todos os outros módulos.
 
 let phaseBackgroundScroll = 0;
+let sceneGradient = null;
+let sceneGradientKey = '';
+
+function getSceneGradient(theme) {
+    const key = currentLevel + ':' + W + ':' + H + ':' + canvas.width + ':' + canvas.height;
+    if (key !== sceneGradientKey || !sceneGradient) {
+        sceneGradient = ctx.createLinearGradient(0, 0, 0, H);
+        sceneGradient.addColorStop(0, theme.bgTop);
+        sceneGradient.addColorStop(1, theme.bgBottom);
+        sceneGradientKey = key;
+    }
+    return sceneGradient;
+}
 
 function update() {
     if (lockMessageTimer > 0) lockMessageTimer--;
@@ -381,6 +394,11 @@ function drawPhaseBackground() {
 
 function draw() {
     ctx.save();
+    const gpuActive = typeof PixiRenderer !== 'undefined' && PixiRenderer.isActive();
+    if (gpuActive) {
+        PixiRenderer.renderFrame();
+        ctx.clearRect(0, 0, W, H);
+    }
     if (shakeTime > 0) {
         ctx.translate((Math.random() - 0.5) * 8, (Math.random() - 0.5) * 8);
     }
@@ -391,33 +409,34 @@ function draw() {
 
     if (inGameplay) {
         const theme = getLevelTheme(currentLevel);
-        const grad = ctx.createLinearGradient(0, 0, 0, H);
-        grad.addColorStop(0, theme.bgTop);
-        grad.addColorStop(1, theme.bgBottom);
-        ctx.fillStyle = grad;
+        ctx.fillStyle = getSceneGradient(theme);
     } else {
         ctx.fillStyle = '#000';
     }
-    ctx.fillRect(0, 0, W, H);
+    if (!gpuActive) ctx.fillRect(0, 0, W, H);
 
-    if (inGameplay) drawPhaseBackground();
+    if (inGameplay && (!gpuActive || !PixiRenderer.drawsPhaseBackground())) drawPhaseBackground();
     if (inGameplay) drawLevelDecor();
 
-    ctx.fillStyle = '#557';
-    starsFar.forEach(s => {
-        ctx.globalAlpha = s.alphaBase * (0.75 + 0.25 * Math.sin(s.twinklePhase));
-        ctx.fillRect(s.x, s.y, s.size, s.size);
-    });
-    ctx.fillStyle = '#fff';
-    stars.forEach(s => {
-        ctx.globalAlpha = s.alphaBase * (0.7 + 0.3 * Math.sin(s.twinklePhase));
-        ctx.fillRect(s.x, s.y, s.size, s.size);
-    });
-    ctx.fillStyle = '#aef';
-    starsNear.forEach(s => {
-        ctx.globalAlpha = s.alphaBase * (0.65 + 0.35 * Math.sin(s.twinklePhase));
-        ctx.fillRect(s.x, s.y, s.size, s.size);
-    });
+    if (!gpuActive) {
+        ctx.fillStyle = '#557';
+        starsFar.forEach(s => {
+            ctx.globalAlpha = s.alphaBase * (0.75 + 0.25 * Math.sin(s.twinklePhase));
+            ctx.fillRect(s.x, s.y, s.size, s.size);
+        });
+        ctx.fillStyle = '#fff';
+        stars.forEach(s => {
+            ctx.globalAlpha = s.alphaBase * (0.7 + 0.3 * Math.sin(s.twinklePhase));
+            ctx.fillRect(s.x, s.y, s.size, s.size);
+        });
+    }
+    if (!gpuActive) {
+        ctx.fillStyle = '#aef';
+        starsNear.forEach(s => {
+            ctx.globalAlpha = s.alphaBase * (0.65 + 0.35 * Math.sin(s.twinklePhase));
+            ctx.fillRect(s.x, s.y, s.size, s.size);
+        });
+    }
     ctx.globalAlpha = 1;
 
     if (gameState === 'START') {
@@ -565,6 +584,7 @@ function gameLoop(timestamp) {
     const elapsed = Math.min(50, Math.max(0, now - lastLoopTime));
     lastLoopTime = now;
     updateAccumulator += elapsed;
+    if (typeof GraphicsManager !== 'undefined') GraphicsManager.recordFrame(elapsed, now);
     try {
         let steps = 0;
         while (updateAccumulator >= FIXED_UPDATE_MS && steps < 3) {
@@ -578,7 +598,7 @@ function gameLoop(timestamp) {
             const drawStarted = clock.now();
             draw();
             const drawCost = clock.now() - drawStarted;
-            if (typeof GraphicsManager !== 'undefined') GraphicsManager.recordDrawCost(drawCost, now);
+            if (typeof GraphicsManager !== 'undefined') GraphicsManager.recordDrawCost(drawCost);
             lastDrawTime = now;
         }
     } catch (err) {

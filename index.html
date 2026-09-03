@@ -8,7 +8,7 @@
 </head>
 <body>
 
-<div id="gameShell"><aside class="desktop-panel left"><b>NAVINHA ARCADE</b><span>WASD / Setas</span><span>Espaço: disparar</span><span>P: pausar</span><span>O: ajustes</span></aside><canvas id="gameCanvas" width="480" height="720"></canvas><aside class="desktop-panel right"><b>MISSÃO</b><span>10 fases</span><span>Chefes multiestágio</span><span>Resgates + estrelas</span><span>Power-ups especiais</span></aside></div><script>if (window.matchMedia && window.matchMedia("(min-width: 980px)").matches) { document.getElementById("gameCanvas").width = 1024; }</script>
+<div id="gameShell"><aside class="desktop-panel left"><b>NAVINHA ARCADE</b><span>WASD / Setas</span><span>Espaço: disparar</span><span>P: pausar</span><span>O: ajustes</span></aside><div id="gameViewport"><canvas id="pixiCanvas" width="480" height="720" aria-hidden="true"></canvas><canvas id="gameCanvas" width="480" height="720"></canvas></div><aside class="desktop-panel right"><b>MISSÃO</b><span>10 fases</span><span>Chefes multiestágio</span><span>Resgates + estrelas</span><span>Power-ups especiais</span></aside></div><script>if (window.matchMedia && window.matchMedia("(min-width: 980px)").matches) { document.getElementById("gameCanvas").width = 1024; document.getElementById("pixiCanvas").width = 1024; }</script>
 
 <!--
   O jogo é dividido em módulos dentro de js/, carregados em ordem de
@@ -35,6 +35,9 @@
 <script src="js/ui.js"></script>
 <script src="js/enhancements.js"></script>
 <script src="js/v12.js"></script>
+<!-- PixiJS é carregado em segundo plano somente em http/https. Em file:// ou
+     sem WebGL, o Canvas 2D permanece como fallback automático. -->
+<script src="js/pixi-renderer.js"></script>
 <script src="js/game.js"></script>
 </body>
 </html>

@@ -21,6 +21,7 @@ const testWidth = Number(process.env.TEST_WIDTH || 480);
 const canvas = {
     width: testWidth,
     height: 720,
+    style: {},
     getContext: () => ctx2d,
     addEventListener: (type, callback) => { canvasListeners[type] = callback; },
     getBoundingClientRect: () => ({ left: 0, top: 0, width: testWidth, height: 720 })
@@ -149,13 +150,18 @@ for (const source of sources) {
     run("GraphicsManager.setMode('AUTOMATICO')");
     assert.strictEqual(run('GraphicsManager.effective()'), 'BAIXO');
     assert.strictEqual(run('GraphicsManager.displayLabel()'), 'AUTO (BAIXO)');
-    assert.strictEqual(run('GraphicsManager.profile().renderFps'), 30);
-    const expectedWidths = testWidth <= 480 ? [480, 480, 480] : [640, 800, 1024];
+    assert.strictEqual(run('GraphicsManager.profile().renderFps'), 24);
+    const expectedWidths = testWidth <= 480 ? [360, 432, 480] : [512, 768, 1024];
+    const expectedHeights = testWidth <= 480 ? [540, 648, 720] : [360, 540, 720];
     ['BAIXO', 'MEDIO', 'ALTO'].forEach((mode, index) => {
         run(`GraphicsManager.setMode('${mode}')`);
         assert.strictEqual(run('GraphicsManager.effective()'), mode);
         assert.strictEqual(run('canvas.width'), expectedWidths[index]);
-        assert.strictEqual(run('GraphicsManager.profile().renderFps'), [30, 45, 60][index]);
+        assert.strictEqual(run('canvas.height'), expectedHeights[index]);
+        assert.strictEqual(run('W'), testWidth <= 480 ? 480 : 1024);
+        assert.strictEqual(run('H'), 720);
+        assert.strictEqual(run('GraphicsManager.profile().renderFps'), [24, 40, 60][index]);
+        run('draw()');
     });
     assert.strictEqual(JSON.parse(storage.get('navinhaGraphicsMode')), 'ALTO');
     assert.strictEqual(run('ShipSpriteManager.getActiveIndex()'), 0);
