@@ -23,6 +23,7 @@ function changeDifficulty(delta) {
     const target = (difficultyIndex + delta + DIFFICULTIES.length) % DIFFICULTIES.length;
     if (isDifficultyUnlocked(target)) {
         difficultyIndex = target;
+        safeSet('navinhaDifficulty', difficultyIndex);
         lockMessageTimer = 0;
         playSound(300, 0.05, 'square', 0.06);
     } else {
@@ -58,6 +59,8 @@ window.addEventListener('keydown', (e) => {
             gameState = 'LEVEL_SELECT';
         } else if (k === 'v') {
             cycleSelectedShip(1);
+        } else if (k === 'c' && typeof SaveManager !== 'undefined' && SaveManager.hasCheckpoint()) {
+            continueSavedRun();
         }
     } else if (gameState === 'SHOP') {
         if (k === '1') purchaseUpgrade('life');
@@ -126,6 +129,10 @@ function handleMenuTap(px, py) {
         toggleMute();
         return;
     }
+    if ((gameState === 'PLAYING' || gameState === 'PAUSED') && uiButtons.pauseBtn && pointInRect(px, py, uiButtons.pauseBtn)) {
+        togglePause();
+        return;
+    }
     if (gameState === 'START') {
         if (pointInRect(px, py, uiButtons.diffLeft)) { changeDifficulty(-1); return; }
         if (pointInRect(px, py, uiButtons.diffRight)) { changeDifficulty(1); return; }
@@ -180,6 +187,7 @@ canvas.addEventListener('touchstart', (e) => {
     const py = (e.touches[0].clientY - rect.top) * (H / rect.height);
 
     if (gameState === 'PLAYING') {
+        if (uiButtons.pauseBtn && pointInRect(px, py, uiButtons.pauseBtn)) { togglePause(); return; }
         isTouching = true;
         touchX = px;
         touchY = py;
@@ -197,6 +205,12 @@ canvas.addEventListener('touchmove', (e) => {
 }, { passive: false });
 
 canvas.addEventListener('touchend', () => {
+    isTouching = false;
+    touchX = null;
+    touchY = null;
+}, { passive: false });
+
+canvas.addEventListener('touchcancel', () => {
     isTouching = false;
     touchX = null;
     touchY = null;

@@ -2,6 +2,7 @@
 // Efeitos sonoros e trilha (Web Audio API). Respeita soundMuted.
 
 let audioCtx;
+let explosionBuffer = null;
 const levelAudioTimers = new Set();
 
 function scheduleLevelSound(callback, delay) {
@@ -52,14 +53,14 @@ function playExplosion() {
     if (typeof soundMuted !== 'undefined' && soundMuted) return;
     if (!audioCtx) return;
     try {
-        const bufferSize = audioCtx.sampleRate * 0.4;
-        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-        const data = buffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) {
-            data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
+        if (!explosionBuffer) {
+            const bufferSize = Math.floor(audioCtx.sampleRate * 0.4);
+            explosionBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = explosionBuffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
         }
         const noise = audioCtx.createBufferSource();
-        noise.buffer = buffer;
+        noise.buffer = explosionBuffer;
         const filter = audioCtx.createBiquadFilter();
         filter.type = 'lowpass';
         filter.frequency.value = 800;
@@ -99,6 +100,16 @@ const MELODIES = {
     core:     { melody: [220, 0, 262, 0, 311, 0, 392, 0, 311, 0, 262, 0], bass: [110, 0, 0, 0, 131, 0, 0, 0] }
 };
 
+// Motivos exclusivos por missão; continuam sintetizados e leves (zero MP3
+// residente) e evitam que pares de fases soem exatamente iguais.
+const PHASE_MUSIC = {
+  1:[262,330,392,523,392,330,294,392], 2:[220,277,330,440,370,330,277,247],
+  3:[294,349,440,587,523,440,349,262], 4:[311,392,466,622,523,466,392,311],
+  5:[196,247,294,370,330,294,247,165], 6:[175,233,294,349,294,233,196,147],
+  7:[330,392,494,659,587,494,440,392], 8:[349,440,523,698,659,523,466,392],
+  9:[220,277,349,466,415,349,311,233], 10:[165,220,262,330,392,330,262,196]
+};
+
 let melody = MELODIES.none.melody;
 let bassLine = MELODIES.none.bass;
 let noteIndex = 0;
@@ -107,7 +118,8 @@ let bassIndex = 0;
 function setMusicForLevel(level) {
     const phase = typeof getPhase === 'function' ? getPhase(level) : null;
     const key = (phase && phase.decor && MELODIES[phase.decor]) ? phase.decor : 'none';
-    melody = MELODIES[key].melody;
+    const motif = PHASE_MUSIC[level] || MELODIES[key].melody;
+    melody = motif.flatMap(note => [note, 0]);
     bassLine = MELODIES[key].bass;
     noteIndex = 0;
     bassIndex = 0;

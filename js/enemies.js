@@ -120,7 +120,7 @@ const ENEMY_BEHAVIOR = {
         if (e.y < 60) {
             e.y += e.speed;
         } else {
-            e.x += e.dir * 2.2;
+            e.x += e.dir * (2.2 + ((e.bossStage || 1) - 1) * 0.38);
             if (e.x <= 0 || e.x + e.w >= W) e.dir *= -1;
         }
         // Telegrafia: avisa o ataque antes de disparar (só com o chefe já em posição)
@@ -133,7 +133,8 @@ const ENEMY_BEHAVIOR = {
                 fireBossPattern(e);
                 e.telegraphing = false;
                 // Garante intervalo mínimo para a próxima telegrafia caber no ciclo
-                e.shootTimer = Math.max(BOSS_TELEGRAPH_FRAMES + 12, 46 - currentLevel * 3);
+                const stageBoost = currentLevel === 2 ? ((e.bossStage || 1) - 1) * 4 : 0;
+                e.shootTimer = Math.max(BOSS_TELEGRAPH_FRAMES + 7, 46 - currentLevel * 3 - stageBoost);
             }
         }
     }
@@ -169,6 +170,8 @@ function spawnBoss() {
         bossName: bossDef.name,
         bossColors: bossDef,
         bossPattern: bossDef.pattern,
+        bossStage: 1,
+        bossStageCount: bossDef.stages || 1,
         isFinalBoss: !!bossDef.isFinalBoss
     });
     playSound(80, 0.6, 'sawtooth', 0.25);
@@ -574,15 +577,19 @@ function drawBossTelegraph(e) {
         // Leque de 5 trajetórias (aproxima speed 4.8 + vx t*4.5)
         const y0 = e.y + e.h;
         const count = 5;
+        const stage = currentLevel === 2 ? (e.bossStage || 1) : 1;
+        const speed = 4.35 + stage * 0.45;
+        const spread = 3.8 + stage * 0.55;
+        const color = e.bossColors && e.bossColors.projectileColor || '#ff8800';
         for (let i = 0; i < count; i++) {
             const t = (i / (count - 1)) - 0.5;
-            const vx = t * 4.5;
-            const speed = 4.8;
+            const vx = t * spread;
             // Projeta ~40 frames à frente para desenhar a linha
             const steps = 50;
-            const x1 = cx + vx * steps;
+            const cannonX = e.x + e.w * (0.22 + i * 0.14);
+            const x1 = cannonX + vx * steps;
             const y1 = y0 + speed * steps;
-            dashLine(cx, y0, x1, y1, '#ff8800', 2);
+            dashLine(cannonX, e.y + e.h * 0.91, x1, y1, color, 2);
         }
     } else if (pattern === 2) {
         // Mira travada: linha grossa até longe na direção fixa
@@ -661,6 +668,7 @@ const SHARED_ENEMY_SPRITES = {
         width: 1.85, height: 1.85, glow: '#ff9d2e'
     }
 };
+Object.assign(SHARED_ENEMY_SPRITES,{shooter:{key:'enemy-shooter-shared',file:'assets/enemies/shared/artilheiro-violeta.webp',width:2.05,height:2.05,glow:'#d348ff'},splitter:{key:'enemy-splitter-shared',file:'assets/enemies/shared/divisor-esmeralda.webp',width:2.1,height:2.1,glow:'#30ffc4'},splitter_mini:{key:'enemy-splitter-mini-shared',file:'assets/enemies/shared/fragmento-esmeralda.webp',width:2,height:2,glow:'#74ffe0'},spinner:{key:'enemy-spinner-shared',file:'assets/enemies/shared/rotor-ciano.webp',width:2.1,height:2.1,glow:'#3fe5ff'}});
 
 Object.keys(SHARED_ENEMY_SPRITES).forEach(type => {
     const def = SHARED_ENEMY_SPRITES[type];
@@ -669,17 +677,20 @@ Object.keys(SHARED_ENEMY_SPRITES).forEach(type => {
     });
 });
 
-const PHASE1_BOSS_SPRITE = {
-    key: 'phase1-boss', width: 1.18, height: 1.22, glow: '#ff3028'
+const LEVEL_BOSS_SPRITES = {
+    1: { key: 'phase1-boss', width: 1.18, height: 1.22, glow: '#ff3028' },
+    2: { key: 'phase2-boss', width: 1.30, height: 1.30, glow: '#33ddff' },
+    3: { key: 'phase3-boss', width: 1.34, height: 1.32, glow: '#ff2a7a' }
 };
+Object.assign(LEVEL_BOSS_SPRITES,{4:{key:'phase4-boss',width:1.34,height:1.32,glow:'#ff50ff'},5:{key:'phase5-boss',width:1.36,height:1.32,glow:'#ffb742'},6:{key:'phase6-boss',width:1.36,height:1.32,glow:'#ff7028'},7:{key:'phase7-boss',width:1.35,height:1.34,glow:'#6eeaff'},8:{key:'phase8-boss',width:1.36,height:1.34,glow:'#eaffff'},9:{key:'phase9-boss',width:1.38,height:1.34,glow:'#ff942e'},10:{key:'phase10-boss',width:1.42,height:1.38,glow:'#ff3820'}});
 
 function drawAvailableEnemySprite(e) {
     let spriteDef = SHARED_ENEMY_SPRITES[e.type];
     let image = spriteDef ? AssetManager.getSharedImage(spriteDef.key) : null;
 
     // Chefes não são compartilhados: cada fase mantém sua identidade própria.
-    if (e.type === 'boss' && currentLevel === 1) {
-        spriteDef = PHASE1_BOSS_SPRITE;
+    if (e.type === 'boss' && LEVEL_BOSS_SPRITES[currentLevel]) {
+        spriteDef = LEVEL_BOSS_SPRITES[currentLevel];
         image = AssetManager.getLevelImage(spriteDef.key);
     }
     if (!spriteDef) return false;

@@ -123,7 +123,7 @@ function recomputeDifficultyStars(diffKey) {
     if (count === 0) return 0;
     // 3 estrelas/fase → escala para 0–5; exige ter jogado várias fases
     const avg3 = sum / Math.max(count, 1);
-    const scaled = Math.round((avg3 / 3) * 5);
+    const scaled = count === 10 && Math.min(...arr.slice(1,11)) >= 3 ? 5 : Math.min(4,Math.round(((count/10)*.65+(avg3/3)*.35)*4));
     // Bônus: se todas as 10 fases têm pelo menos 1★, mínimo 3; se todas 3★, 5
     let result = Math.max(1, Math.min(5, scaled));
     if (count >= 10) {
@@ -214,7 +214,7 @@ const DIFFICULTY_CONFIG = {
     INSANO:  { label: 'INSANO',  enemySpeedMult: 1.35, enemyHealthMult: 1.6, spawnRateMult: 1.38, startLives: 2, color: '#f80' },
     INFERNO: { label: 'INFERNO', enemySpeedMult: 1.6,  enemyHealthMult: 2.1, spawnRateMult: 1.6,  startLives: 1, color: '#f00' }
 };
-let difficultyIndex = 0;
+let difficultyIndex = clampInt(safeGet('navinhaDifficulty',0),0,DIFFICULTIES.length-1,0);
 function currentDifficulty() {
     return DIFFICULTY_CONFIG[DIFFICULTIES[difficultyIndex]];
 }

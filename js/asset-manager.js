@@ -5,6 +5,7 @@ const AssetManager = (() => {
     const levelCache = new Map();
     let activeLevel = null;
     let activeScript = null;
+    let loadGeneration = 0;
 
     const LOAD_TIMEOUT_MS = 10000;
     const MAX_ATTEMPTS = 2;
@@ -76,6 +77,14 @@ const AssetManager = (() => {
         }
     }
 
+    function disposeResources(resources) {
+        (resources || []).forEach(resource => {
+            if (resource && resource.tagName === 'SCRIPT') resource.remove();
+            if (resource && resource.image) resource.image.src = '';
+            if (resource && resource.objectUrl) URL.revokeObjectURL(resource.objectUrl);
+        });
+    }
+
     function loadImage(url, key, attempt) {
         return new Promise((resolve, reject) => {
             if (typeof Image === 'undefined') {
@@ -101,6 +110,7 @@ const AssetManager = (() => {
     }
 
     async function loadLevel(level, onProgress) {
+        const generation = ++loadGeneration;
         const meta = getPhaseMeta(level);
         const assets = [{ type: 'script', url: meta.script }].concat(meta.assets || []);
         const loaded = [];
@@ -126,9 +136,21 @@ const AssetManager = (() => {
                 console.error('[AssetManager] recurso da Fase ' + level + ' com erro:', asset.url, error);
                 throw error;
             }
+            if (generation !== loadGeneration) {
+                disposeResources(loaded);
+                const cancelled = new Error('Carregamento substituído por uma nova transição');
+                cancelled.cancelled = true;
+                throw cancelled;
+            }
             onProgress(Math.round(((index + 1) / assets.length) * 100), asset.url);
         }
 
+        if (generation !== loadGeneration) {
+            disposeResources(loaded);
+            const cancelled = new Error('Carregamento cancelado');
+            cancelled.cancelled = true;
+            throw cancelled;
+        }
         levelCache.set(level, loaded);
         activeLevel = level;
         activeScript = loaded[0] || null;
@@ -180,6 +202,7 @@ const AssetManager = (() => {
         unloadShared,
         getLevelImage,
         getActiveLevel: () => activeLevel,
+        cancelPending: () => { loadGeneration++; },
         getStats: () => ({
             sharedAssets: sharedCache.size,
             levelAssets: activeLevel === null ? 0 : (levelCache.get(activeLevel) || []).length,

@@ -145,7 +145,8 @@ for (const source of sources) {
 }
 
 (async () => {
-    await waitFor("AssetManager.getStats().sharedAssets === 16 && Object.keys(POWERUP_SPRITES).every(type => !!PowerupSpriteManager.get(type)) && Object.values(SHARED_ENEMY_SPRITES).every(def => !!AssetManager.getSharedImage(def.key)) && Object.keys(EFFECT_SPRITES).every(name => !!EffectSpriteManager.get(name))");
+    const expectedSharedAssets = run('1 + Object.keys(POWERUP_SPRITES).length + Object.keys(SHARED_ENEMY_SPRITES).length + Object.keys(EFFECT_SPRITES).length + Object.keys(ENVIRONMENT_SPRITES).length');
+    await waitFor(`AssetManager.getStats().sharedAssets === ${expectedSharedAssets} && Object.values(SHARED_ENEMY_SPRITES).every(def => !!AssetManager.getSharedImage(def.key)) && Object.keys(ENVIRONMENT_SPRITES).every(name => !!EnvironmentSpriteManager.get(name))`);
     assert.deepStrictEqual(Array.from(run('GRAPHICS_MODES')), ['AUTOMATICO', 'BAIXO', 'MEDIO', 'ALTO']);
     run("GraphicsManager.setMode('AUTOMATICO')");
     assert.strictEqual(run('GraphicsManager.effective()'), 'BAIXO');
@@ -173,12 +174,16 @@ for (const source of sources) {
     powerupPaths.forEach(sprite => assert.ok(fs.existsSync(path.join(root, sprite)), sprite));
     assert.deepStrictEqual(Array.from(run("Object.keys(POWERUP_SPRITES).map(type => !!PowerupSpriteManager.get(type))")), [true, true, true, true, true, true]);
     const sharedEnemyPaths = Array.from(run('Object.values(SHARED_ENEMY_SPRITES).map(def => def.file)'));
-    assert.strictEqual(sharedEnemyPaths.length, 3);
+    assert.strictEqual(sharedEnemyPaths.length, 7);
     sharedEnemyPaths.forEach(sprite => assert.ok(fs.existsSync(path.join(root, sprite)), sprite));
     const effectPaths = Array.from(run('Object.values(EFFECT_SPRITES).map(def => def.file)'));
     assert.strictEqual(effectPaths.length, 6);
     effectPaths.forEach(sprite => assert.ok(fs.existsSync(path.join(root, sprite)), sprite));
     assert.strictEqual(run("EffectSpriteManager.draw('shield', 50, 50, 80, 80)"), true);
+    const environmentPaths = Array.from(run('Object.values(ENVIRONMENT_SPRITES).map(def => def.file)'));
+    assert.strictEqual(environmentPaths.length, 8);
+    environmentPaths.forEach(sprite => assert.ok(fs.existsSync(path.join(root, sprite)), sprite));
+    assert.deepStrictEqual(Array.from(run("Object.keys(ENVIRONMENT_SPRITES).map(type => EnvironmentSpriteManager.draw(type, 50, 50, 40, 40))")), Array(8).fill(true));
     run("GraphicsManager.setMode('ALTO'); particles = []; spawnParticles(10, 10, '#fff', 12)");
     assert.strictEqual(run("particles.some(p => p.effect === 'explosion')"), true);
     run("GraphicsManager.setMode('BAIXO'); particles = []; spawnParticles(10, 10, '#fff', 400)");
@@ -190,7 +195,7 @@ for (const source of sources) {
     run('shipsUnlocked = [true, true, true, true, true]');
     for (let expected = 1; expected < 5; expected++) {
         run('cycleSelectedShip(1)');
-        await waitFor('ShipSpriteManager.getActiveIndex() === ' + expected + ' && AssetManager.getStats().sharedAssets === 16');
+        await waitFor('ShipSpriteManager.getActiveIndex() === ' + expected + ' && AssetManager.getStats().sharedAssets === ' + expectedSharedAssets);
     }
 
     assert.deepStrictEqual(Array.from(run('Object.keys(PHASE_DEFS)')), []);
@@ -212,21 +217,45 @@ for (const source of sources) {
     await waitFor("gameState === 'LEVEL_TRANSITION' && currentLevel === 2");
     assert.deepStrictEqual(Array.from(run('Object.keys(PHASE_DEFS)')), ['2']);
     assert.deepStrictEqual(scriptTags.map(tag => tag.dataset.levelAsset), ['2']);
-    assert.strictEqual(run('AssetManager.getStats().levelAssets'), 1);
+    assert.strictEqual(run('AssetManager.getStats().levelAssets'), 3);
     assert.strictEqual(run("!!AssetManager.getSharedImage(SHARED_ENEMY_SPRITES.normal.key)"), true);
+    assert.strictEqual(run("!!AssetManager.getLevelImage('phase2-boss')"), true);
     assert.strictEqual(run("AssetManager.getLevelImage('phase1-boss')"), null);
     assert.strictEqual(run("AssetManager.getLevelImage('phase1-background')"), null);
     assert.strictEqual(run("drawAvailableEnemySprite({type:'normal',x:0,y:0,w:35,h:35})"), true);
-    assert.strictEqual(run("drawAvailableEnemySprite({type:'boss',x:0,y:0,w:150,h:100})"), false);
+    assert.strictEqual(run("drawAvailableEnemySprite({type:'boss',x:0,y:0,w:150,h:100})"), true);
+
+    run("enemies=[]; enemyBullets=[]; bossActive=false; gameState='PLAYING'; spawnBoss(); enemies[0].y=60; enemies[0].health=enemies[0].maxHealth*.2; updateEnemy(enemies[0]); fireBossPattern(enemies[0])");
+    assert.strictEqual(run('enemies[0].bossStage'), 3);
+    assert.strictEqual(run('enemies[0].bossPattern'), 1);
+    assert.strictEqual(run('enemyBullets.length'), 5);
+    assert.strictEqual(run('new Set(enemyBullets.map(b => b.x)).size'), 5);
+    assert.deepStrictEqual(Array.from(run('enemyBullets.map(b => b.color)')), Array(5).fill('#33ddff'));
 
     run("gameState = 'PLAYING'; continueToNextLevel()");
     await waitFor("gameState === 'LEVEL_TRANSITION' && currentLevel === 3");
     assert.deepStrictEqual(Array.from(run('Object.keys(PHASE_DEFS)')), ['3']);
     assert.deepStrictEqual(scriptTags.map(tag => tag.dataset.levelAsset), ['3']);
+    assert.strictEqual(run('AssetManager.getStats().levelAssets'), 3);
+    assert.strictEqual(run("AssetManager.getLevelImage('phase2-boss')"), null);
+    assert.strictEqual(run("!!AssetManager.getLevelImage('phase3-boss')"), true);
+    assert.strictEqual(run("drawAvailableEnemySprite({type:'boss',x:0,y:0,w:150,h:100})"), true);
+
+    run("enemies=[]; enemyBullets=[]; bossActive=false; gameState='PLAYING'; spawnBoss(); enemies[0].y=60; enemies[0].health=enemies[0].maxHealth*.5; updateEnemy(enemies[0]); fireBossPattern(enemies[0])");
+    assert.strictEqual(run('enemies[0].bossStage'), 2);
+    assert.strictEqual(run('enemies[0].bossPattern'), 3);
+    assert.strictEqual(run('enemyBullets.length'), 3);
+    assert.deepStrictEqual(Array.from(run('enemyBullets.map(b => b.color)')), Array(3).fill('#ff8ac8'));
+    run("enemyBullets=[]; enemies[0].health=enemies[0].maxHealth*.2; updateEnemy(enemies[0]); enemies[0].telegraphCenter=true; fireBossPattern(enemies[0])");
+    assert.strictEqual(run('enemies[0].bossStage'), 3);
+    assert.strictEqual(run('enemies[0].bossPattern'), 0);
+    assert.deepStrictEqual(Array.from(run('enemyBullets.map(b => b.color)')), ['#ff2a7a','#ff2a7a','#ff8ac8']);
+
+    for(let level=4;level<=10;level++){run("gameState='PLAYING';continueToNextLevel()");await waitFor("gameState==='LEVEL_TRANSITION'&&currentLevel==="+level);assert.deepStrictEqual(Array.from(run('Object.keys(PHASE_DEFS)')),[String(level)]);assert.strictEqual(run('AssetManager.getStats().levelAssets'),3);assert.strictEqual(run("!!AssetManager.getLevelImage('phase"+level+"-boss')"),true);assert.strictEqual(run("!!AssetManager.getLevelImage('phase"+level+"-background')"),true);}
 
     run('retryLevel()');
-    await waitFor("gameState === 'LEVEL_TRANSITION' && currentLevel === 3");
-    assert.deepStrictEqual(Array.from(run('Object.keys(PHASE_DEFS)')), ['3']);
+    await waitFor("gameState === 'LEVEL_TRANSITION' && currentLevel === 10");
+    assert.deepStrictEqual(Array.from(run('Object.keys(PHASE_DEFS)')), ['10']);
     assert.strictEqual(scriptTags.length, 1);
 
     run("gameState = 'PLAYING'; togglePause()");
@@ -238,6 +267,7 @@ for (const source of sources) {
     assert.strictEqual(run('gameState'), 'START');
     assert.deepStrictEqual(Array.from(run('Object.keys(PHASE_DEFS)')), []);
     assert.strictEqual(scriptTags.length, 0);
+    assert.strictEqual(run("AssetManager.getLevelImage('phase3-boss')"), null);
     assert.strictEqual(run('enemies.length + bullets.length + enemyBullets.length + particles.length + powerups.length'), 0);
 
     // Exercita os handlers reais de PC e celular no botão JOGAR.

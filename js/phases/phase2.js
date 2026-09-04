@@ -13,7 +13,10 @@ PHASE_DEFS[2] = {
         plateColor: '#a0a0aa',
         coreColor: '#cfcfe0',
         eyeColor: '#0ff',
+        projectileColor: '#33ddff',
         pattern: 1,      // leque de 5 tiros
+        lockPattern: true, // mantém os cinco canhões ativos em todos os estágios
+        stages: 3,       // acelera movimento e cadência ao perder blindagem
         sizeScale: 1.03,
         shape: 'capital'
     }

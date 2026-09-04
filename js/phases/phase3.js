@@ -13,7 +13,10 @@ PHASE_DEFS[3] = {
         plateColor: '#ff2a7a',
         coreColor: '#ff6ab0',
         eyeColor: '#ff0',
+        projectileColor: '#ff2a7a',
+        projectileAltColor: '#ff8ac8',
         pattern: 2,      // tiro mirado no jogador
+        stages: 3,       // mira direta, espiral e ataque múltiplo
         sizeScale: 1.05,
         shape: 'devourer'
     }

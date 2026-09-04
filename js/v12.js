@@ -1,6 +1,6 @@
 // ================= NAVINHA ARCADE v1.2 =================
 // Polimento visual, menu redesenhado e otimizações de impacto/boss.
-const GAME_VERSION='1.8';
+const GAME_VERSION='2.2';
 
 // Limita partículas em máquinas mais fracas e impede acúmulo durante bosses.
 const _spawnParticlesV11=spawnParticles;
@@ -67,7 +67,9 @@ drawStartScreen=function(){
   const playY=shipY+(mobile?82:96);uiButtons.playButton={x:panelX,y:playY,w:panelW,h:mobile?56:68};
   ctx.save();ctx.shadowColor='#25f3ae';ctx.shadowBlur=24;let pg=ctx.createLinearGradient(panelX,playY,panelX+panelW,playY);pg.addColorStop(0,'#0a8d75');pg.addColorStop(.45,'#19cca1');pg.addColorStop(1,'#087d89');ctx.fillStyle=pg;roundRectPath(panelX,playY,panelW,uiButtons.playButton.h,15);ctx.fill();ctx.shadowBlur=0;ctx.strokeStyle='#8effdf';ctx.lineWidth=1.4;ctx.stroke();ctx.fillStyle='#fff';ctx.font=`900 ${mobile?21:24}px Segoe UI,Arial`;ctx.fillText('▶  INICIAR MISSÃO',W/2,playY+(mobile?35:43));ctx.restore();
 
+  const checkpoint=typeof SaveManager!=='undefined'?SaveManager.read():null;
   const smallY=playY+uiButtons.playButton.h+(mobile?9:13), smallW=(panelW-gap)/2;uiButtons.settingsBtn={x:panelX,y:smallY,w:smallW,h:mobile?38:42};uiButtons.achievementsBtn={x:panelX+smallW+gap,y:smallY,w:smallW,h:mobile?38:42};neonButton(uiButtons.settingsBtn,'AJUSTES','','#718cff');neonButton(uiButtons.achievementsBtn,'CONQUISTAS','','#ffc857');
+  if(checkpoint){uiButtons.continueRun={x:panelX,y:smallY+(mobile?43:47),w:panelW,h:34};neonButton(uiButtons.continueRun,'CONTINUAR FASE '+checkpoint.level,'CHECKPOINT (C)','#62e8ff',true);}
   ctx.fillStyle='#4b6173';ctx.font='10px Segoe UI,Arial';ctx.fillText(mobile?'Arraste para mover • tiro automático':'WASD/Setas • Espaço • Mouse opcional',W/2,Math.min(H-13,smallY+61));
 };
 
@@ -76,6 +78,4 @@ const _drawHUDV11=drawHUD;
 let _hudGradientV12=null;
 drawHUD=function(){_drawHUDV11();if(gameState==='PLAYING'){ctx.save();const low=typeof GraphicsManager!=='undefined'&&GraphicsManager.effective()==='BAIXO';if(low){ctx.fillStyle='rgba(0,5,15,.22)';}else{if(!_hudGradientV12){_hudGradientV12=ctx.createLinearGradient(0,0,0,110);_hudGradientV12.addColorStop(0,'rgba(0,5,15,.34)');_hudGradientV12.addColorStop(1,'rgba(0,0,0,0)');}ctx.fillStyle=_hudGradientV12;}ctx.fillRect(0,0,W,110);ctx.restore();}};
 
-// overlay de impacto curto sem freeze de lógica.
-const _drawEnemyV11=drawEnemy;
-drawEnemy=function(e){_drawEnemyV11(e);const flash=typeof GraphicsManager==='undefined'||GraphicsManager.profile().bossFlash;if(flash&&e.type==='boss'&&e.hitFlash>0){ctx.save();ctx.globalCompositeOperation='screen';ctx.globalAlpha=.12;ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(e.x+e.w/2,e.y+e.h/2,e.w*.62,0,Math.PI*2);ctx.fill();ctx.restore();}};
+// Flash do chefe centralizado em game.js para evitar desenho duplicado.

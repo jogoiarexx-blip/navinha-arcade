@@ -144,6 +144,20 @@ function awardPhaseStars(level) {
 // identidade diferente a cada par de fases.
 function drawLevelDecor() {
     levelDecor.forEach(d => {
+        let spriteDrawn=false;
+        if(typeof EnvironmentSpriteManager!=='undefined'){
+            const pulse=.78+.22*Math.sin(d.twinklePhase||0);
+            if(d.type==='blob')spriteDrawn=EnvironmentSpriteManager.draw('nebula',d.x,d.y,d.r*2.5,d.r*2.5,{alpha:(d.alphaBase||.15)*pulse,glow:false});
+            else if(d.type==='asteroid')spriteDrawn=EnvironmentSpriteManager.draw('asteroid',d.x,d.y,d.r*2.15,d.r*2.15,{rotation:d.rot||0,alpha:.88,glow:false});
+            else if(d.type==='crystal')spriteDrawn=EnvironmentSpriteManager.draw('crystal',d.x,d.y,d.r*1.35,d.r*2,{alpha:.42*pulse,glowBlur:4});
+            else if(d.type==='coreGlow')spriteDrawn=EnvironmentSpriteManager.draw('core',d.x,d.y,d.r*2,d.r*2,{rotation:(d.rot||0),alpha:.22+.16*pulse,glowBlur:5});
+            else if(d.type==='planet')spriteDrawn=EnvironmentSpriteManager.draw('planet',d.x,d.y,d.r*2,d.r*2,{alpha:.85,glow:false});
+        }
+        if(d.type==='dust'&&typeof EffectSpriteManager!=='undefined'){
+            const pulse=.6+.4*Math.sin(d.twinklePhase||0);
+            spriteDrawn=EffectSpriteManager.draw('particle',d.x,d.y,Math.max(3,d.size*2.4),Math.max(3,d.size*2.4),{alpha:(d.alphaBase||.3)*pulse,glow:d.color,glowBlur:2});
+        }
+        if(spriteDrawn)return;
         if (d.type === 'blob') {
             const pulse = 0.75 + 0.25 * Math.sin(d.twinklePhase || 0);
             ctx.globalAlpha = d.alphaBase * pulse;
@@ -310,7 +324,8 @@ const LevelManager = (() => {
                 return;
             }
 
-            if (mode === 'continue') {
+            if (mode === 'resume') {const snapshot=SaveManager.read();prepareNewRun(level);if(!SaveManager.restore(snapshot))throw new Error('Checkpoint inválido');}
+            else if (mode === 'continue') {
                 continuousRun = true;
                 resetCombo();
                 player.health = Math.min(player.maxHealth, player.health + 1);
@@ -349,6 +364,7 @@ const LevelManager = (() => {
 })();
 
 function resetGame() {
+    if(typeof SaveManager!=='undefined')SaveManager.clear();
     LevelManager.start(1, 'new-game');
 }
 
@@ -377,6 +393,7 @@ function retryLevel() {
 // Chamado ao derrotar o chefe: avalia estrelas, paga créditos e abre PHASE_RESULT
 function nextLevel() {
     const beatenLevel = currentLevel;
+    if(typeof SaveManager!=='undefined'&&beatenLevel<MAX_LEVEL)SaveManager.saveNext(beatenLevel+1);
     lastUnlockedDifficulty = null;
 
     const phaseResult = awardPhaseStars(beatenLevel);

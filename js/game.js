@@ -27,7 +27,7 @@ function update() {
     // se movem, exceto pausado
     if (gameState !== 'PAUSED') {
         const graphics = typeof GraphicsManager !== 'undefined' ? GraphicsManager.profile() : null;
-        if (currentLevel === 1 && (!graphics || graphics.animatedBackground)) phaseBackgroundScroll += 0.0015;
+        if (!graphics || graphics.animatedBackground) phaseBackgroundScroll += 0.0015;
         [starsFar, stars, starsNear].forEach(layer => {
             layer.forEach(s => {
                 s.y += s.speed;
@@ -116,6 +116,10 @@ function update() {
         if (b.vx) b.x += b.vx;
     });
     enemyBullets = enemyBullets.filter(b => b.y < H + 30 && b.x > -30 && b.x < W + 30);
+    const objectProfile=GraphicsManager.profile();
+    if(bullets.length>objectProfile.bulletCap)bullets.splice(0,bullets.length-objectProfile.bulletCap);
+    if(enemyBullets.length>objectProfile.enemyBulletCap)enemyBullets.splice(0,enemyBullets.length-objectProfile.enemyBulletCap);
+    if(typeof hazardObjects!=='undefined'&&hazardObjects.length>objectProfile.hazardCap)hazardObjects.splice(0,hazardObjects.length-objectProfile.hazardCap);
 
     const diff = currentDifficulty();
     enemySpawnTimer++;
@@ -248,6 +252,8 @@ function update() {
     particles = particles.filter(p => p.life > 0);
 }
 
+function defeatEnemy(e,source){if(!e||e.type==='boss'||e.defeated)return false;e.defeated=true;e.health=0;const points={shooter:25,tank:30,spinner:20,splitter:15,splitter_mini:8,zigzag:12,normal:10};registerKill(points[e.type]||10);enemiesKilledThisLevel++;spawnParticles(e.x+e.w/2,e.y+e.h/2,e.type==='tank'?'#fa0':'#ff0',e.type==='tank'?18:12);if(e.type==='splitter'){spawnEnemyOfType('splitter_mini',e.x+e.w/2-24,e.y+e.h/2);spawnEnemyOfType('splitter_mini',e.x+e.w/2+6,e.y+e.h/2);}if(source!=='collision')maybeSpawnPowerup(e.x+e.w/2-17,e.y+e.h/2-17);return true;}
+
 // Escudo absorve o hit: ainda invalida Perfect (foi atingido)
 function absorbHitWithShield(invFrames) {
     player.shield--;
@@ -294,19 +300,26 @@ function fireBossPattern(e) {
 
     if (pattern === 0) {
         // Tiro duplo + ocasional tiro central (decisão já feita na telegrafia)
-        enemyBullets.push({ x: e.x + 25, y: e.y + e.h - 10, w: 8, h: 16, speed: 4.5, color: '#f00' });
-        enemyBullets.push({ x: e.x + e.w - 33, y: e.y + e.h - 10, w: 8, h: 16, speed: 4.5, color: '#f00' });
+        const primaryColor = e.bossColors?.projectileColor || '#f00';
+        const altColor = e.bossColors?.projectileAltColor || '#ff0';
+        enemyBullets.push({ x: e.x + 25, y: e.y + e.h - 10, w: 8, h: 16, speed: 4.5, color: primaryColor });
+        enemyBullets.push({ x: e.x + e.w - 33, y: e.y + e.h - 10, w: 8, h: 16, speed: 4.5, color: primaryColor });
         if (e.telegraphCenter) {
-            enemyBullets.push({ x: e.x + e.w / 2 - 4, y: e.y + e.h, w: 8, h: 16, speed: 5, color: '#ff0' });
+            enemyBullets.push({ x: e.x + e.w / 2 - 4, y: e.y + e.h, w: 8, h: 16, speed: 5, color: altColor });
         }
     } else if (pattern === 1) {
-        // Leque de 5 tiros
+        // Leque de 5 tiros alinhado aos canhões do Guardião Cinza.
         const count = 5;
+        const stage = currentLevel === 2 ? (e.bossStage || 1) : 1;
+        const speed = 4.35 + stage * 0.45;
+        const spread = 3.8 + stage * 0.55;
+        const color = e.bossColors?.projectileColor || '#ff8800';
         for (let i = 0; i < count; i++) {
             const t = (i / (count - 1)) - 0.5; // -0.5 .. 0.5
             enemyBullets.push({
-                x: e.x + e.w / 2 - 4, y: e.y + e.h, w: 8, h: 16,
-                speed: 4.8, vx: t * 4.5, color: '#ff8800'
+                x: e.x + e.w * (0.22 + i * 0.14) - 4,
+                y: e.y + e.h * 0.91,
+                w: 8, h: 16, speed, vx: t * spread, color
             });
         }
     } else if (pattern === 2) {
@@ -324,7 +337,7 @@ function fireBossPattern(e) {
         const spd = 5.2;
         enemyBullets.push({
             x: cx - 4, y: cy, w: 8, h: 16, speed: spd * dy,
-            vx: spd * dx, color: '#ff00ff'
+            vx: spd * dx, color: e.bossColors?.projectileColor || '#ff00ff'
         });
     } else {
         // Rajada em espiral: ângulo já avançado em beginBossTelegraph
@@ -338,7 +351,7 @@ function fireBossPattern(e) {
                 x: cx - 4, y: cy, w: 8, h: 16,
                 speed: Math.max(1.5, speedMag * Math.sin(ang) + 2.2),
                 vx: speedMag * Math.cos(ang),
-                color: '#a0ff00'
+                color: e.bossColors?.projectileAltColor || '#a0ff00'
             });
         }
     }
@@ -366,8 +379,8 @@ function playerHit() {
 }
 
 function drawPhaseBackground() {
-    if (currentLevel !== 1 || typeof AssetManager === 'undefined') return;
-    const image = AssetManager.getLevelImage('phase1-background');
+    if (typeof AssetManager === 'undefined') return;
+    const image = AssetManager.getLevelImage('phase' + currentLevel + '-background');
     if (!image || !image.complete) return;
 
     const iw = image.naturalWidth || image.width;
@@ -454,8 +467,9 @@ function draw() {
     } else if (gameState === 'ACHIEVEMENTS') {
         drawAchievementsScreen();
     } else {
+        const gpuGameplay=gpuActive&&PixiRenderer.drawsGameplay();
         if (player && player.w && (player.invincible <= 0 || Math.floor(player.invincible / 4) % 2 === 0)) {
-            drawPlayerShip();
+            if(!gpuGameplay)drawPlayerShip();
             if (player.shield > 0) {
                 const shieldAlpha = 0.72 + Math.sin(Date.now() / 90) * 0.18;
                 const profile = typeof GraphicsManager !== 'undefined' ? GraphicsManager.profile() : { spriteBullets:true };
@@ -472,7 +486,7 @@ function draw() {
             }
         }
 
-        bullets.forEach(b => {
+        if(!gpuGameplay)bullets.forEach(b => {
             const angle = Math.atan2(b.vx || 0, b.speed || 10);
             const profile = typeof GraphicsManager !== 'undefined' ? GraphicsManager.profile() : { spriteBullets:true };
             const drawn = profile.spriteBullets && typeof EffectSpriteManager !== 'undefined' &&
@@ -485,7 +499,7 @@ function draw() {
             }
         });
 
-        enemyBullets.forEach(b => {
+        if(!gpuGameplay)enemyBullets.forEach(b => {
             const angle = Math.atan2(-(b.vx || 0), Math.abs(b.speed || 5));
             const profile = typeof GraphicsManager !== 'undefined' ? GraphicsManager.profile() : { spriteBullets:true };
             const drawn = profile.spriteBullets && typeof EffectSpriteManager !== 'undefined' &&
@@ -499,9 +513,9 @@ function draw() {
         });
 
         enemies.forEach(e => {
-            drawEnemy(e);
+            if(!gpuGameplay)drawEnemy(e);else if(e.type==='boss'){drawBossNameAndHealthBar(e);drawBossTelegraph(e);}
             const profile = typeof GraphicsManager !== 'undefined' ? GraphicsManager.profile() : { bossFlash:true };
-            if (e.hitFlash > 0 && profile.bossFlash) {
+            if (!gpuGameplay && e.hitFlash > 0 && profile.bossFlash) {
                 // Flash de dano: overlay branco aditivo em vez de ctx.filter
                 // (ctx.filter='brightness()' processa pixel a pixel e derruba
                 // o FPS quando o boss, que é grande, toma tiro quase todo frame).
@@ -517,10 +531,10 @@ function draw() {
         });
 
         if (typeof drawPhaseHazards === 'function') drawPhaseHazards();
-        drawPowerups();
+        if(!gpuGameplay)drawPowerups();
         drawRescues();
 
-        particles.forEach(p => {
+        if(!gpuGameplay)particles.forEach(p => {
             const profile = typeof GraphicsManager !== 'undefined' ? GraphicsManager.profile() :
                 { spriteParticles:true, spriteExplosions:true };
             const lifeFrac = Math.max(0, p.life / (p.maxLife || 40));
@@ -567,6 +581,7 @@ function draw() {
     if (typeof achievementToastTimer !== 'undefined' && achievementToastTimer > 0) achievementToastTimer--;
     // Durante o loading o toque fica reservado ao botão de nova tentativa.
     if (gameState !== 'LOADING') drawMuteButton();
+    drawPauseButton();
 
     ctx.restore();
 }

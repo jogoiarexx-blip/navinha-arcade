@@ -224,6 +224,15 @@ function updatePhaseHazards() {
 }
 function drawPhaseHazards() {
   hazardObjects.forEach(o => {
+    if(typeof EnvironmentSpriteManager!=='undefined'){
+      if(o.kind==='rock'&&EnvironmentSpriteManager.draw('asteroid',o.x+o.r,o.y+o.r,o.r*2.25,o.r*2.25,{rotation:o.rot,glow:false}))return;
+      if(o.kind==='mine'&&EnvironmentSpriteManager.draw('mine',o.x+14,o.y+14,42,42,{rotation:o.pulse*.16,glowBlur:5}))return;
+      if(o.kind==='shard'&&EnvironmentSpriteManager.draw('shard',o.x+6,o.y+17,22,43,{rotation:.3,glowBlur:5}))return;
+      if(o.kind==='laser'){
+        EnvironmentSpriteManager.draw('laserEmitter',o.gapX-15,o.y+o.h/2,38,38,{rotation:Math.PI/2,glowBlur:4});
+        EnvironmentSpriteManager.draw('laserEmitter',o.gapX+o.gapW+15,o.y+o.h/2,38,38,{rotation:-Math.PI/2,flipX:true,glowBlur:4});
+      }
+    }
     ctx.save();
     if (o.kind==='rock') {
       ctx.translate(o.x+o.r,o.y+o.r); ctx.rotate(o.rot); ctx.fillStyle='#6b5648'; ctx.strokeStyle='#b89b7e'; ctx.lineWidth=2;
@@ -248,7 +257,7 @@ POWERUP_EFFECTS.overdrive = () => { player.overdriveTimer = 600; playSound(980,.
 POWERUP_EFFECTS.drone = () => { player.droneTimer = 720; playSound(760,.2,'triangle',.1); };
 POWERUP_EFFECTS.bomb = () => {
   enemyBullets = []; flashOverlay=12; shakeTime=16;
-  enemies.forEach(e => { if(e.type!=='boss') e.health=0; else e.health=Math.max(1,e.health-Math.ceil(e.maxHealth*.07)); });
+  enemies.slice().forEach(e=>{if(e.type!=='boss')defeatEnemy(e,'bomb');else e.health=Math.max(1,e.health-Math.ceil(e.maxHealth*.07));});
   playExplosion();
 };
 const baseShoot = shoot;
@@ -276,7 +285,9 @@ updateEnemy = function(e){
     const hp=e.health/Math.max(1,e.maxHealth); const stages=e.isFinalBoss?4:3;
     const stage=hp>.66?1:(hp>.33?2:3); const finalStage=e.isFinalBoss && hp<.16 ? 4:stage;
     if(e.bossStage!==finalStage){ e.bossStage=finalStage; e.shootTimer=Math.max(BOSS_TELEGRAPH_FRAMES+8,36-finalStage*3); shakeTime=8; flashOverlay=7; playSound(120+finalStage*90,.2,'sawtooth',.08); }
-    e.bossPattern=((e.baseBossPattern ?? e.bossPattern ?? 0)+(finalStage-1))%4;
+    e.bossPattern=e.bossColors?.lockPattern
+      ? (e.baseBossPattern ?? e.bossPattern ?? 0)
+      : ((e.baseBossPattern ?? e.bossPattern ?? 0)+(finalStage-1))%4;
     e.speed=(1.35+finalStage*.22)*currentDifficulty().enemySpeedMult;
   }
   baseUpdateEnemy(e);

@@ -59,7 +59,7 @@ const context = vm.createContext({
         Application, Texture, Sprite, Container,
         BaseTexture: class { static from(source) { return { source }; } },
         RENDERER_TYPE: { WEBGL: 1 },
-        SCALE_MODES: { LINEAR: 1, NEAREST: 0 }
+        SCALE_MODES: { LINEAR: 1, NEAREST: 0 }, utils:{string2hex:()=>0xffffff}
     },
     canvas: gameCanvas,
     W: 480,
@@ -71,7 +71,7 @@ const context = vm.createContext({
     starsNear: [],
     getLevelTheme: () => ({ bgTop: '#001122', bgBottom: '#000000' }),
     AssetManager: { getLevelImage: () => null },
-    GraphicsManager: { profile: () => ({ animatedBackground: false }) },
+    GraphicsManager:{profile:()=>({animatedBackground:false,spriteParticles:false,particleCap:24})},gameState:'START',player:{},selectedShip:0,SHIP_DEFS:[{renderH:72}],bullets:[],enemyBullets:[],enemies:[],powerups:[],particles:[],ShipSpriteManager:{get:()=>null},EffectSpriteManager:{get:()=>null},PowerupSpriteManager:{get:()=>null},SHARED_ENEMY_SPRITES:{},
     Math
 });
 context.window = context;

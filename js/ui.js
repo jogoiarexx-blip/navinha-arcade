@@ -698,6 +698,20 @@ function drawMuteButton() {
     ctx.fillText(soundMuted ? '🔇' : '🔊', r.x + r.w / 2, r.y + 20);
 }
 
+function drawPauseButton() {
+    if (gameState !== 'PLAYING' && gameState !== 'PAUSED') { uiButtons.pauseBtn = null; return; }
+    const r = { x: W - 52, y: 10, w: 40, h: 34 };
+    uiButtons.pauseBtn = r;
+    ctx.fillStyle = 'rgba(0,12,28,.72)';
+    ctx.fillRect(r.x, r.y, r.w, r.h);
+    ctx.strokeStyle = '#62e8ff';
+    ctx.strokeRect(r.x, r.y, r.w, r.h);
+    ctx.fillStyle = '#dffcff';
+    ctx.font = 'bold 18px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(gameState === 'PAUSED' ? '▶' : 'Ⅱ', r.x + r.w / 2, r.y + 23);
+}
+
 function drawTutorialOverlay() {
     ctx.fillStyle = 'rgba(0,0,0,0.78)';
     ctx.fillRect(0, 0, W, H);
