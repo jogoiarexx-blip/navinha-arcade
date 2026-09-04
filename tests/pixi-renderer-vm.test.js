@@ -82,5 +82,6 @@ assert.strictEqual(vm.runInContext('PixiRenderer.isActive()', context), true);
 vm.runInContext('PixiRenderer.renderFrame()', context);
 assert.strictEqual(vm.runInContext('PixiRenderer.isActive()', context), true);
 assert.strictEqual(vm.runInContext('PixiRenderer.drawsPhaseBackground()', context), false);
+assert.strictEqual(vm.runInContext('PixiRenderer.drawsGameplay()', context), false);
 assert.strictEqual(vm.runInContext('PixiRenderer.resize(); W', context), 480);
 console.log('PIXIJS / WEBGL HÍBRIDO: PASS');

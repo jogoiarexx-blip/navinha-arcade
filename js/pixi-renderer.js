@@ -154,7 +154,11 @@ const PixiRenderer = (() => {
             gradientSprite.height = H;
             syncPhaseBackground();
             syncStars();
-            syncGameplay();
+            // O canvas 2D fica acima da camada Pixi e desenha gameplay/HUD.
+            // Não enviamos entidades para a camada inferior: em file:// ou
+            // durante o carregamento do background elas poderiam ficar atrás
+            // de uma imagem opaca e desaparecer, embora a lógica continuasse.
+            if (entityContainer) entityContainer.visible = false;
             app.renderer.render(app.stage);
         } catch (error) {
             active = false;
@@ -181,7 +185,9 @@ const PixiRenderer = (() => {
         isActive: () => active,
         statusLabel: () => active ? 'GPU/PIXIJS' : 'CANVAS',
         drawsPhaseBackground: () => !!(active && phaseSprite && phaseSprite.visible),
-        drawsGameplay: () => !!(active && entityContainer),
+        // Gameplay permanece no Canvas superior. Pixi acelera apenas o fundo
+        // e as estrelas, que são os elementos com maior área de preenchimento.
+        drawsGameplay: () => false,
         renderFrame,
         resize
     };

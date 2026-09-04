@@ -1,4 +1,4 @@
-const CACHE_NAME = 'navinha-arcade-v2.2.0';
+const CACHE_NAME = 'navinha-arcade-v2.2.1';
 const CORE = [
   './','./index.html','./css/style.css','./manifest.webmanifest',
   './js/core.js','./js/phase-manifest.js','./js/audio.js','./js/asset-manager.js',

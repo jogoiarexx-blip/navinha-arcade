@@ -1,6 +1,6 @@
 // ================= NAVINHA ARCADE v1.2 =================
 // Polimento visual, menu redesenhado e otimizações de impacto/boss.
-const GAME_VERSION='2.2';
+const GAME_VERSION='2.2.1';
 
 // Limita partículas em máquinas mais fracas e impede acúmulo durante bosses.
 const _spawnParticlesV11=spawnParticles;
