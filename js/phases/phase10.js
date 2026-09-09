@@ -5,6 +5,7 @@ PHASE_DEFS[10] = {
     bgBottom: '#050000',
     decor: 'core',
     decorAccent: '#ff2200',
+    hasImageBackground: true,
     enemiesToKill: 42,
     boss: {
         name: 'Imperador Abissal',

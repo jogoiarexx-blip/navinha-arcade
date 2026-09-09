@@ -1,13 +1,13 @@
-const CACHE_NAME = 'navinha-arcade-v2.2.1';
+const CACHE_NAME = 'navinha-arcade-v2.2.2';
 const CORE = [
   './','./index.html','./css/style.css','./manifest.webmanifest',
   './js/core.js','./js/phase-manifest.js','./js/audio.js','./js/asset-manager.js',
   './js/ship-sprites.js','./js/powerup-sprites.js','./js/effect-sprites.js','./js/environment-sprites.js',
   './js/loading-screen.js','./js/save-manager.js','./js/levels.js','./js/player.js',
   './js/enemies.js','./js/rescue.js','./js/upgrades.js','./js/ui.js',
-  './js/enhancements.js','./js/v12.js','./js/pixi-renderer.js','./js/game.js',
+  './js/enhancements.js','./js/v12.js','./js/pixi-renderer.js','./js/game.js','./js/pwa.js',
   './assets/icons/icon-192.png','./assets/icons/icon-512.png','./vendor/pixi.min.js',
-  './js/phases/phase1.js','./js/phases/phase2.js','./js/phases/phase3.js','./js/phases/phase4.js','./js/phases/phase5.js',
+  './js/phases/phase1.js','./js/phases/phase2-runtime.js','./js/phases/phase3-runtime.js','./js/phases/phase4.js','./js/phases/phase5.js',
   './js/phases/phase6.js','./js/phases/phase7.js','./js/phases/phase8.js','./js/phases/phase9.js','./js/phases/phase10.js',
   './assets/ships/interceptora.webp','./assets/ships/fantasma-branca.webp','./assets/ships/blindada-cinza.webp','./assets/ships/espectro-violeta.webp','./assets/ships/fenix-solar.webp'
   ,'./assets/enemies/shared/patrulheiro-rubro.webp','./assets/enemies/shared/interceptador-zigzag.webp','./assets/enemies/shared/blindado-bronze.webp','./assets/enemies/shared/artilheiro-violeta.webp','./assets/enemies/shared/divisor-esmeralda.webp','./assets/enemies/shared/fragmento-esmeralda.webp','./assets/enemies/shared/rotor-ciano.webp'
@@ -32,5 +32,5 @@ self.addEventListener('fetch', event => {
       const copy = response.clone(); caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
     }
     return response;
-  }).catch(() => caches.match('./index.html'))));
+  }).catch(() => event.request.mode === 'navigate' ? caches.match('./index.html') : Response.error())));
 });

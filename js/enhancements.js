@@ -16,18 +16,21 @@ const GRAPHICS_PROFILES = {
   BAIXO: {
     label:'BAIXO', renderFps:24, renderScale:.5, mobileScale:.75,
     stars:[12,18,6], particleScale:.12, particleCap:24, decorScale:.15,
+    bulletCap:35, enemyBulletCap:45, hazardCap:8,
     glows:false, additive:false, spriteParticles:false, spriteExplosions:false,
     spriteBullets:false, animatedBackground:false, bossFlash:false
   },
   MEDIO: {
     label:'MÉDIO', renderFps:40, renderScale:.75, mobileScale:.9,
     stars:[38,50,18], particleScale:.45, particleCap:90, decorScale:.55,
+    bulletCap:70, enemyBulletCap:100, hazardCap:16,
     glows:true, glowCap:4, additive:false, spriteParticles:false, spriteExplosions:true,
     spriteBullets:true, animatedBackground:true, bossFlash:true
   },
   ALTO: {
     label:'ALTO', renderFps:60, renderScale:1, mobileScale:1,
     stars:[90,110,50], particleScale:1, particleCap:260, decorScale:1,
+    bulletCap:140, enemyBulletCap:220, hazardCap:30,
     glows:true, glowCap:18, additive:true, spriteParticles:true, spriteExplosions:true,
     spriteBullets:true, animatedBackground:true, bossFlash:true
   }
@@ -35,14 +38,17 @@ const GRAPHICS_PROFILES = {
 
 const GraphicsManager = (() => {
   const cores = Math.max(1, Number(navigator.hardwareConcurrency) || 4);
-  const memory = Math.max(1, Number(navigator.deviceMemory) || 4);
-  let automaticCeiling = (cores <= 4 || memory <= 4) ? 'BAIXO' :
-    ((cores <= 8 || memory <= 8) ? 'MEDIO' : 'ALTO');
+  const reportedMemory = Number(navigator.deviceMemory);
+  const memory = Number.isFinite(reportedMemory) && reportedMemory > 0 ? reportedMemory : null;
+  let automaticCeiling = (cores <= 4 || (memory !== null && memory <= 4)) ? 'BAIXO' :
+    ((cores <= 8 || (memory !== null && memory <= 8)) ? 'MEDIO' : 'ALTO');
   let automaticQuality = automaticCeiling;
   let drawCostAverage = 0;
   let frameTimeAverage = 0;
   let samples = 0;
   let lastAdjustment = 0;
+  let slowWindows = 0;
+  let fastWindows = 0;
 
   function effective() {
     return graphicsMode === 'AUTOMATICO' ? automaticQuality : graphicsMode;
@@ -101,12 +107,20 @@ const GraphicsManager = (() => {
     const rank = qualityRank(automaticQuality);
     const ceiling = qualityRank(automaticCeiling);
     let next = automaticQuality;
-    if ((frameTimeAverage > 22 || drawCostAverage > 15) && rank > 0) next = ['BAIXO','MEDIO','ALTO'][rank - 1];
-    else if (frameTimeAverage < 18.5 && drawCostAverage < 7 && rank < ceiling) next = ['BAIXO','MEDIO','ALTO'][rank + 1];
+    const slow = frameTimeAverage > 22 || drawCostAverage > 15;
+    const fast = frameTimeAverage < 18.5 && drawCostAverage < 7;
+    slowWindows = slow ? slowWindows + 1 : 0;
+    fastWindows = fast ? fastWindows + 1 : 0;
+    if (slowWindows >= 1 && rank > 0) next = ['BAIXO','MEDIO','ALTO'][rank - 1];
+    else if (fastWindows >= 2 && rank < ceiling) next = ['BAIXO','MEDIO','ALTO'][rank + 1];
     if (next !== automaticQuality) {
       automaticQuality = next;
       fxQuality = automaticQuality === 'BAIXO' ? 'BAIXA' : 'ALTA';
       lastAdjustment = now;
+      slowWindows = 0;
+      fastWindows = 0;
+      frameTimeAverage = 0;
+      drawCostAverage = 0;
       refreshScene();
     }
   }
@@ -358,6 +372,7 @@ handleMenuTap = function(px,py){
     if(pointInRect(px,py,uiButtons.diffLeft)){changeDifficulty(-1);return;} if(pointInRect(px,py,uiButtons.diffRight)){changeDifficulty(1);return;}
     if(pointInRect(px,py,uiButtons.shop)){gameState='SHOP';return;} if(uiButtons.levelSelect&&pointInRect(px,py,uiButtons.levelSelect)){gameState='LEVEL_SELECT';return;}
     if(pointInRect(px,py,uiButtons.shipLeft)){cycleSelectedShip(-1);return;} if(pointInRect(px,py,uiButtons.shipRight)){cycleSelectedShip(1);return;}
+    if(uiButtons.continueRun&&pointInRect(px,py,uiButtons.continueRun)){continueSavedRun();return;}
     if(pointInRect(px,py,uiButtons.playButton)){resetGame();return;} return;
   }
   if(gameState==='SHOP'){
@@ -378,11 +393,6 @@ handleMenuTap = function(px,py){
 canvas.addEventListener('mousemove',e=>{if(gameState!=='PLAYING'||controlMode!=='MOUSE')return;const r=canvas.getBoundingClientRect();touchX=(e.clientX-r.left)*(W/r.width);touchY=(e.clientY-r.top)*(H/r.height);mouseHoverActive=true;});
 canvas.addEventListener('mouseleave',()=>{mouseHoverActive=false;if(controlMode==='MOUSE'){touchX=null;touchY=null;}});
 window.addEventListener('keydown',e=>{const k=e.key.toLowerCase();if(k==='c'&&gameState==='START'){gameState='ACHIEVEMENTS';}if(k==='o'&&gameState==='START'){gameState='SETTINGS';}if((gameState==='SETTINGS'||gameState==='ACHIEVEMENTS')&&(k==='escape'||k==='backspace'))gameState='START';});
-
-// desenho extra de naves novas
-function drawShipGeneric(scheme){const x=player.x,y=player.y,w=player.w,h=player.h,cx=x+w/2,profile=GraphicsManager.profile();ctx.save();ctx.shadowColor=scheme.glow;ctx.shadowBlur=profile.glows?Math.min(12,profile.glowCap||12):0;ctx.fillStyle=scheme.flame;const flick=5+Math.sin(Date.now()/45)*3;ctx.beginPath();ctx.moveTo(cx-8,y+h-5);ctx.lineTo(cx,y+h+flick);ctx.lineTo(cx+8,y+h-5);ctx.fill();ctx.fillStyle=scheme.body;ctx.beginPath();ctx.moveTo(cx,y);ctx.lineTo(x+w,y+h*.72);ctx.lineTo(cx+w*.18,y+h*.62);ctx.lineTo(cx,y+h*.92);ctx.lineTo(cx-w*.18,y+h*.62);ctx.lineTo(x,y+h*.72);ctx.closePath();ctx.fill();ctx.fillStyle=scheme.core;ctx.beginPath();ctx.arc(cx,y+h*.42,w*.11,0,Math.PI*2);ctx.fill();ctx.restore();}
-const oldDrawPlayerShip = drawPlayerShip;
-drawPlayerShip=function(){if(player.shipType===3)drawShipGeneric({body:'#6f38ff',core:'#f0b3ff',glow:'#9d5cff',flame:'#53f3ff'});else if(player.shipType===4)drawShipGeneric({body:'#ff7a18',core:'#fff08a',glow:'#ff7a18',flame:'#fff'});else oldDrawPlayerShip();};
 
 // wrappers visuais
 const originalHUD = drawHUD;

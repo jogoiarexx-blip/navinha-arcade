@@ -5,6 +5,7 @@ PHASE_DEFS[4] = {
     bgBottom: '#040008',
     decor: 'nebula',
     decorAccent: '#c040ff',
+    hasImageBackground: true,
     enemiesToKill: 24,
     boss: {
         name: 'Pulsar Magenta',

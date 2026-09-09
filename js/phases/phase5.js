@@ -5,6 +5,7 @@ PHASE_DEFS[5] = {
     bgBottom: '#020200',
     decor: 'asteroids',
     decorAccent: '#c8862a',
+    hasImageBackground: true,
     enemiesToKill: 27,
     boss: {
         name: 'Britador',

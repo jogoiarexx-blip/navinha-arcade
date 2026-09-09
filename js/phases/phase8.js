@@ -5,6 +5,7 @@ PHASE_DEFS[8] = {
     bgBottom: '#000205',
     decor: 'crystals',
     decorAccent: '#7ef0ff',
+    hasImageBackground: true,
     enemiesToKill: 36,
     boss: {
         name: 'Cristal Prime',

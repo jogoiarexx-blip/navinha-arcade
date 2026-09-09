@@ -5,6 +5,7 @@ PHASE_DEFS[9] = {
     bgBottom: '#050000',
     decor: 'core',
     decorAccent: '#ff5522',
+    hasImageBackground: true,
     enemiesToKill: 39,
     boss: {
         name: 'Guardião do Núcleo',

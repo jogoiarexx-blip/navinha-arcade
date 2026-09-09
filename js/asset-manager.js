@@ -92,6 +92,7 @@ const AssetManager = (() => {
                 return;
             }
             const image = new Image();
+            image.decoding = 'async';
             let settled = false;
             const timer = setTimeout(() => finish(new Error('Tempo esgotado: ' + url)), LOAD_TIMEOUT_MS);
             function finish(error) {
@@ -131,7 +132,7 @@ const AssetManager = (() => {
                     ));
                 }
             } catch (error) {
-                loaded.forEach(resource => resource.remove && resource.remove());
+                disposeResources(loaded);
                 delete PHASE_DEFS[level];
                 console.error('[AssetManager] recurso da Fase ' + level + ' com erro:', asset.url, error);
                 throw error;
@@ -163,6 +164,7 @@ const AssetManager = (() => {
         if (cached && cached.url === url) return cached.promise;
         if (cached && cached.image) cached.image.src = '';
         const image = new Image();
+        image.decoding = 'async';
         const entry = { type: 'image', url, image, ready: false, promise: null };
         entry.promise = new Promise((resolve, reject) => {
             image.onload = () => { entry.ready = true; resolve(image); };

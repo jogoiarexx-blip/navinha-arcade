@@ -153,7 +153,8 @@ function drawLevelDecor() {
             else if(d.type==='coreGlow')spriteDrawn=EnvironmentSpriteManager.draw('core',d.x,d.y,d.r*2,d.r*2,{rotation:(d.rot||0),alpha:.22+.16*pulse,glowBlur:5});
             else if(d.type==='planet')spriteDrawn=EnvironmentSpriteManager.draw('planet',d.x,d.y,d.r*2,d.r*2,{alpha:.85,glow:false});
         }
-        if(d.type==='dust'&&typeof EffectSpriteManager!=='undefined'){
+        if(d.type==='dust'&&typeof EffectSpriteManager!=='undefined'&&
+            (typeof GraphicsManager==='undefined'||GraphicsManager.effective()!=='BAIXO')){
             const pulse=.6+.4*Math.sin(d.twinklePhase||0);
             spriteDrawn=EffectSpriteManager.draw('particle',d.x,d.y,Math.max(3,d.size*2.4),Math.max(3,d.size*2.4),{alpha:(d.alphaBase||.3)*pulse,glow:d.color,glowBlur:2});
         }
@@ -354,6 +355,7 @@ const LevelManager = (() => {
 
     function leaveTo(state) {
         transitionId++;
+        AssetManager.cancelPending();
         cleanupLevelRuntime();
         const active = AssetManager.getActiveLevel();
         if (active !== null) AssetManager.unloadLevel(active);

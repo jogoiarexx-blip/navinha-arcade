@@ -5,6 +5,7 @@ PHASE_DEFS[6] = {
     bgBottom: '#020200',
     decor: 'asteroids',
     decorAccent: '#d9a53a',
+    hasImageBackground: true,
     enemiesToKill: 30,
     boss: {
         name: 'Colisor',

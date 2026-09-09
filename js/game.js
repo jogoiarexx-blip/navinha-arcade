@@ -139,14 +139,17 @@ function update() {
         updateEnemy(e);
 
         if (collide(player, e) && player.invincible <= 0) {
+            const isBossCollision = e.type === 'boss';
             if (player.shield > 0) {
                 absorbHitWithShield(40);
                 playExplosion();
                 spawnParticles(e.x + e.w / 2, e.y + e.h / 2, '#0ff', 25);
-                e.health = 0;
+                // Chefes não podem desaparecer por colisão: a conclusão da
+                // fase acontece somente pelo fluxo de derrota do chefe.
+                if (!isBossCollision) e.health = 0;
             } else {
                 playerHit();
-                e.health = 0;
+                if (!isBossCollision) e.health = 0;
             }
         }
 

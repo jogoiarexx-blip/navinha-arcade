@@ -5,6 +5,7 @@ PHASE_DEFS[7] = {
     bgBottom: '#000305',
     decor: 'crystals',
     decorAccent: '#40d0ff',
+    hasImageBackground: true,
     enemiesToKill: 33,
     boss: {
         name: 'Glacius',

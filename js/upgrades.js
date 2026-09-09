@@ -168,8 +168,8 @@ function purchaseShipUnlock(index) {
     safeSet('navinhaShipsUnlocked', shipsUnlocked);
     safeSet('navinhaSelectedShip', selectedShip);
     playSound(750, 0.2, 'sine', 0.12);
-    setTimeout(() => playSound(950, 0.2, 'sine', 0.1), 100);
-    setTimeout(() => playSound(1150, 0.2, 'sine', 0.1), 200);
+    scheduleLevelSound(() => playSound(950, 0.2, 'sine', 0.1), 100);
+    scheduleLevelSound(() => playSound(1150, 0.2, 'sine', 0.1), 200);
 }
 
 // Alterna entre as naves já liberadas (cicla, pulando as bloqueadas)
@@ -206,5 +206,5 @@ function purchaseUpgrade(key) {
     safeSet('navinhaCredits', credits);
     safeSet('navinhaUpgrades', permanentUpgrades);
     playSound(750, 0.2, 'sine', 0.12);
-    setTimeout(() => playSound(950, 0.2, 'sine', 0.1), 100);
+    scheduleLevelSound(() => playSound(950, 0.2, 'sine', 0.1), 100);
 }

@@ -1,6 +1,6 @@
 // ================= NAVINHA ARCADE v1.2 =================
 // Polimento visual, menu redesenhado e otimizações de impacto/boss.
-const GAME_VERSION='2.2.1';
+const GAME_VERSION='2.2.2';
 
 // Limita partículas em máquinas mais fracas e impede acúmulo durante bosses.
 const _spawnParticlesV11=spawnParticles;
@@ -76,6 +76,6 @@ drawStartScreen=function(){
 // HUD/tiros com visual mais limpo e moderno.
 const _drawHUDV11=drawHUD;
 let _hudGradientV12=null;
-drawHUD=function(){_drawHUDV11();if(gameState==='PLAYING'){ctx.save();const low=typeof GraphicsManager!=='undefined'&&GraphicsManager.effective()==='BAIXO';if(low){ctx.fillStyle='rgba(0,5,15,.22)';}else{if(!_hudGradientV12){_hudGradientV12=ctx.createLinearGradient(0,0,0,110);_hudGradientV12.addColorStop(0,'rgba(0,5,15,.34)');_hudGradientV12.addColorStop(1,'rgba(0,0,0,0)');}ctx.fillStyle=_hudGradientV12;}ctx.fillRect(0,0,W,110);ctx.restore();}};
+drawHUD=function(){if(gameState==='PLAYING'){ctx.save();const low=typeof GraphicsManager!=='undefined'&&GraphicsManager.effective()==='BAIXO';if(low){ctx.fillStyle='rgba(0,5,15,.22)';}else{if(!_hudGradientV12){_hudGradientV12=ctx.createLinearGradient(0,0,0,110);_hudGradientV12.addColorStop(0,'rgba(0,5,15,.34)');_hudGradientV12.addColorStop(1,'rgba(0,0,0,0)');}ctx.fillStyle=_hudGradientV12;}ctx.fillRect(0,0,W,110);ctx.restore();}_drawHUDV11();};
 
 // Flash do chefe centralizado em game.js para evitar desenho duplicado.

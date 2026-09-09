@@ -130,7 +130,7 @@ function updateRescues() {
             spawnParticles(s.x + s.w / 2, s.y + s.h / 2, '#0ff', 20);
             spawnParticles(s.x + s.w / 2, s.y + s.h / 2, '#fff', 10);
             playSound(660, 0.12, 'sine', 0.12);
-            setTimeout(() => playSound(880, 0.15, 'sine', 0.1), 90);
+            scheduleLevelSound(() => playSound(880, 0.15, 'sine', 0.1), 90);
             vibrate(50);
             if (survivorsRescued % 3 === 0 && player.health < player.maxHealth) {
                 player.health++;

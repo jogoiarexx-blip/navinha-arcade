@@ -1,5 +1,5 @@
-// Sprites leves compartilhados por decoração e hazards. Mantêm fallback
-// procedural nos módulos originais caso uma imagem não esteja disponível.
+// Sprites de decoração e hazards carregados junto da fase que os utiliza.
+// Mantêm fallback procedural caso uma imagem não esteja disponível.
 const ENVIRONMENT_SPRITES = {
     asteroid:{file:'assets/environment/asteroide.webp',glow:'#ff9f43'},
     mine:{file:'assets/environment/mina-espacial.webp',glow:'#ff3030'},
@@ -14,7 +14,7 @@ const ENVIRONMENT_SPRITES = {
 const EnvironmentSpriteManager=(()=>{
     const keyFor=name=>'environment-'+name;
     function loadAll(){return Promise.allSettled(Object.entries(ENVIRONMENT_SPRITES).map(([name,def])=>AssetManager.loadSharedImage(keyFor(name),def.file)));}
-    function get(name){return AssetManager.getSharedImage(keyFor(name));}
+    function get(name){return AssetManager.getLevelImage(keyFor(name))||AssetManager.getSharedImage(keyFor(name));}
     function draw(name,cx,cy,w,h,options){
         const def=ENVIRONMENT_SPRITES[name],image=def&&get(name);
         if(!image||!image.naturalWidth||!image.naturalHeight)return false;
@@ -27,4 +27,3 @@ const EnvironmentSpriteManager=(()=>{
     }
     return{loadAll,get,draw};
 })();
-EnvironmentSpriteManager.loadAll().catch(error=>console.warn('[EnvironmentSpriteManager]',error));
