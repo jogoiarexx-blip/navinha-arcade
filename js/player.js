@@ -249,7 +249,13 @@ function drawPlayerShip() {
     const shipType = (player && typeof player.shipType === 'number') ? player.shipType : selectedShip;
     const def = SHIP_DEFS[shipType] || SHIP_DEFS[0];
     if (ShipSpriteManager.draw(shipType, player.x + player.w / 2, player.y + player.h / 2,
-        def.renderH || player.h, { glow: def.color, glowBlur: 5 })) return;
+        def.renderH || player.h, {
+            glow: def.color,
+            glowBlur: 5,
+            firing: !!player.shootCooldown,
+            invincible: !!player.invincible,
+            damage: !!player.invincible
+        })) return;
     if (shipType === 1) {
         drawPlayerShipPhantom();
     } else if (shipType === 2) {

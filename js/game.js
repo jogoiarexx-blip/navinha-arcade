@@ -550,7 +550,8 @@ function draw() {
                     alpha: Math.min(1, lifeFrac * 1.6),
                     additive: true,
                     glow: p.color,
-                    glowBlur: 12
+                    glowBlur: 12,
+                    progress: 1 - lifeFrac
                 });
             } else if (profile.spriteParticles && typeof EffectSpriteManager !== 'undefined') {
                 const size = Math.max(5, p.size * 2.5);

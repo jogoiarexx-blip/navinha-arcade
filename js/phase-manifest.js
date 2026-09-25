@@ -5,7 +5,7 @@ const environmentImage = (name, file) => phaseImage('environment-' + name, 'asse
 
 const PHASE_MANIFEST = {
     1: { name:'Patrulha Estelar', accent:'#ff5555', script:'js/phases/phase1.js', assets:[
-        phaseImage('phase1-boss','assets/phases/phase1/sentinela-zero.webp'),
+        phaseImage('phase1-boss','assets/animations/boss-sentinela-zero-sheet.webp'),
         phaseImage('phase1-background','assets/phases/phase1/patrulha-estelar-background.webp') ] },
     2: { name:'Vanguarda Inimiga', accent:'#cfcfe0', script:'js/phases/phase2-runtime.js', assets:[
         phaseImage('phase2-boss','assets/phases/phase2/guardiao-cinza.webp'),

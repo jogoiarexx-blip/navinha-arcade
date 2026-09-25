@@ -192,7 +192,9 @@ function sanitizeSelectedShip(raw) {
 // de cada nave (aplicadas em buildPlayer, em levels.js).
 const SHIP_DEFS = [
     { key: 'default', name: 'Interceptora', desc: 'Equilibrada, arma centralizada',
-      color: '#00aaff', w: 40, h: 50, renderH: 72, sprite: 'assets/ships/interceptora.webp', speed: 6, healthBonus: 0, bulletDmg: 1 },
+      color: '#00aaff', w: 40, h: 50, renderH: 72, sprite: 'assets/ships/interceptora.webp',
+      animatedSprite: 'assets/animations/player-interceptora-sheet.webp', animatedCols: 4, animatedRows: 4,
+      speed: 6, healthBonus: 0, bulletDmg: 1 },
     { key: 'phantom', name: 'Fantasma Branca', desc: 'Mais veloz e ágil, casco mais estreito',
       color: '#f2f2f2', w: 34, h: 44, renderH: 68, sprite: 'assets/ships/fantasma-branca.webp', speed: 7.5, healthBonus: 0, bulletDmg: 1, unlockCost: 280 },
     { key: 'juggernaut', name: 'Blindada Cinza', desc: 'Lenta e robusta, tiro com o dobro de dano',

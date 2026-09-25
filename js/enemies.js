@@ -656,19 +656,34 @@ function drawBossTelegraph(e) {
 // compartilhados, carregados uma única vez e reutilizados sem duplicação.
 const SHARED_ENEMY_SPRITES = {
     normal: {
-        key: 'enemy-normal-shared', file: 'assets/enemies/shared/patrulheiro-rubro.webp',
-        width: 2.05, height: 2.05, glow: '#ff3b28'
+        key: 'enemy-normal-shared', file: 'assets/animations/enemy-patrulheiro-rubro-sheet.webp',
+        width: 2.05, height: 2.05, glow: '#ff3b28', sheet: { cols: 4, rows: 3, frames: 12 }
     },
     zigzag: {
-        key: 'enemy-zigzag-shared', file: 'assets/enemies/shared/interceptador-zigzag.webp',
-        width: 2.20, height: 2.10, glow: '#ff2ca8'
+        key: 'enemy-zigzag-shared', file: 'assets/animations/enemy-zigzag-sheet.webp',
+        width: 2.20, height: 2.10, glow: '#ff2ca8', sheet: { cols: 4, rows: 3, frames: 12 }
     },
     tank: {
-        key: 'enemy-tank-shared', file: 'assets/enemies/shared/blindado-bronze.webp',
-        width: 1.85, height: 1.85, glow: '#ff9d2e'
+        key: 'enemy-tank-shared', file: 'assets/animations/enemy-tank-sheet.webp',
+        width: 1.85, height: 1.85, glow: '#ff9d2e', sheet: { cols: 4, rows: 3, frames: 12 }
+    },
+    shooter: {
+        key:'enemy-shooter-shared', file:'assets/animations/enemy-shooter-sheet.webp',
+        width:2.05, height:2.05, glow:'#d348ff', sheet:{ cols:4, rows:3, frames:12 }
+    },
+    splitter: {
+        key:'enemy-splitter-shared', file:'assets/animations/enemy-splitter-sheet.webp',
+        width:2.1, height:2.1, glow:'#30ffc4', sheet:{ cols:4, rows:3, frames:12 }
+    },
+    splitter_mini: {
+        key:'enemy-splitter-mini-shared', file:'assets/animations/enemy-splitter-mini-sheet.webp',
+        width:2, height:2, glow:'#74ffe0', sheet:{ cols:4, rows:3, frames:12 }
+    },
+    spinner: {
+        key:'enemy-spinner-shared', file:'assets/animations/enemy-spinner-sheet.webp',
+        width:2.1, height:2.1, glow:'#3fe5ff', sheet:{ cols:4, rows:3, frames:12 }
     }
 };
-Object.assign(SHARED_ENEMY_SPRITES,{shooter:{key:'enemy-shooter-shared',file:'assets/enemies/shared/artilheiro-violeta.webp',width:2.05,height:2.05,glow:'#d348ff'},splitter:{key:'enemy-splitter-shared',file:'assets/enemies/shared/divisor-esmeralda.webp',width:2.1,height:2.1,glow:'#30ffc4'},splitter_mini:{key:'enemy-splitter-mini-shared',file:'assets/enemies/shared/fragmento-esmeralda.webp',width:2,height:2,glow:'#74ffe0'},spinner:{key:'enemy-spinner-shared',file:'assets/enemies/shared/rotor-ciano.webp',width:2.1,height:2.1,glow:'#3fe5ff'}});
 
 Object.keys(SHARED_ENEMY_SPRITES).forEach(type => {
     const def = SHARED_ENEMY_SPRITES[type];
@@ -678,11 +693,48 @@ Object.keys(SHARED_ENEMY_SPRITES).forEach(type => {
 });
 
 const LEVEL_BOSS_SPRITES = {
-    1: { key: 'phase1-boss', width: 1.18, height: 1.22, glow: '#ff3028' },
+    1: { key: 'phase1-boss', width: 1.18, height: 1.22, glow: '#ff3028', sheet: { cols: 4, rows: 4, frames: 16 } },
     2: { key: 'phase2-boss', width: 1.30, height: 1.30, glow: '#33ddff' },
     3: { key: 'phase3-boss', width: 1.34, height: 1.32, glow: '#ff2a7a' }
 };
 Object.assign(LEVEL_BOSS_SPRITES,{4:{key:'phase4-boss',width:1.34,height:1.32,glow:'#ff50ff'},5:{key:'phase5-boss',width:1.36,height:1.32,glow:'#ffb742'},6:{key:'phase6-boss',width:1.36,height:1.32,glow:'#ff7028'},7:{key:'phase7-boss',width:1.35,height:1.34,glow:'#6eeaff'},8:{key:'phase8-boss',width:1.36,height:1.34,glow:'#eaffff'},9:{key:'phase9-boss',width:1.38,height:1.34,glow:'#ff942e'},10:{key:'phase10-boss',width:1.42,height:1.38,glow:'#ff3820'}});
+
+function enemySpriteFrame(spriteDef, enemy) {
+    if (!spriteDef || !spriteDef.sheet) return -1;
+    const total = spriteDef.sheet.frames || ((spriteDef.sheet.cols || 1) * (spriteDef.sheet.rows || 1));
+    const now = Date.now();
+    if (enemy.type === 'boss' && currentLevel === 1) {
+        const hpFrac = enemy.maxHealth ? (enemy.health / enemy.maxHealth) : 1;
+        if (hpFrac <= 0.35) return 12 + (Math.floor(now / 90) % 4);
+        if (enemy.shootTimer <= 6) return 8 + (Math.floor(now / 70) % 4);
+        if (enemy.telegraphing || enemy.shootTimer <= 18) return 4 + (Math.floor(now / 90) % 4);
+        return Math.floor(now / 120) % 4;
+    }
+    if (enemy.hitFlash > 0) {
+        return 8 + (Math.floor(now / 55) % 4);
+    }
+    if (enemy.type === 'shooter' && enemy.shootTimer <= 18) {
+        return 4 + (Math.floor(now / 70) % 4);
+    }
+    if (enemy.type === 'spinner') {
+        return Math.floor(now / 80) % 4;
+    }
+    if (enemy.type === 'splitter' || enemy.type === 'splitter_mini') {
+        const pulseAttack = (Math.floor(now / 700) % 3) === 2;
+        return (pulseAttack ? 4 : 0) + (Math.floor(now / 105) % 4);
+    }
+    if (enemy.type === 'zigzag') {
+        return Math.floor(now / 85) % 4;
+    }
+    if (enemy.type === 'tank') {
+        const charging = (Math.floor(now / 900) % 4) === 3;
+        return (charging ? 4 : 0) + (Math.floor(now / 120) % 4);
+    }
+    if (enemy.type === 'normal') {
+        return Math.floor(now / 110) % Math.min(4, total);
+    }
+    return Math.floor(now / 120) % Math.min(4, total);
+}
 
 function drawAvailableEnemySprite(e) {
     let spriteDef = SHARED_ENEMY_SPRITES[e.type];
@@ -696,14 +748,16 @@ function drawAvailableEnemySprite(e) {
     if (!spriteDef) return false;
     if (!image || !image.naturalWidth || !image.naturalHeight) return false;
 
+    const frameRatio = spriteDef.sheet
+        ? (image.naturalWidth / (spriteDef.sheet.cols || 1)) / (image.naturalHeight / (spriteDef.sheet.rows || 1))
+        : image.naturalWidth / image.naturalHeight;
     const maxWidth = e.w * spriteDef.width;
     const maxHeight = e.h * spriteDef.height;
-    const ratio = image.naturalWidth / image.naturalHeight;
     let drawWidth = maxWidth;
-    let drawHeight = drawWidth / ratio;
+    let drawHeight = drawWidth / frameRatio;
     if (drawHeight > maxHeight) {
         drawHeight = maxHeight;
-        drawWidth = drawHeight * ratio;
+        drawWidth = drawHeight * frameRatio;
     }
 
     ctx.save();
@@ -714,10 +768,20 @@ function drawAvailableEnemySprite(e) {
         const requestedBlur = e.type === 'boss' ? 12 : 4;
         ctx.shadowBlur = profile ? Math.min(requestedBlur, profile.glowCap || requestedBlur) : requestedBlur;
     }
-    ctx.drawImage(image,
-        e.x + e.w / 2 - drawWidth / 2,
-        e.y + e.h / 2 - drawHeight / 2,
-        drawWidth, drawHeight);
+    const dx = e.x + e.w / 2 - drawWidth / 2;
+    const dy = e.y + e.h / 2 - drawHeight / 2;
+    if (spriteDef.sheet) {
+        const cols = spriteDef.sheet.cols || 1;
+        const rows = spriteDef.sheet.rows || 1;
+        const frameW = image.naturalWidth / cols;
+        const frameH = image.naturalHeight / rows;
+        const frameIndex = enemySpriteFrame(spriteDef, e);
+        const sx = (frameIndex % cols) * frameW;
+        const sy = Math.floor(frameIndex / cols) * frameH;
+        ctx.drawImage(image, sx, sy, frameW, frameH, dx, dy, drawWidth, drawHeight);
+    } else {
+        ctx.drawImage(image, dx, dy, drawWidth, drawHeight);
+    }
     ctx.restore();
     return true;
 }
