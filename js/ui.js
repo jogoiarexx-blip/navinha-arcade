@@ -4,45 +4,89 @@
 // história, overlays de transição de fase / pausa / game over, e o
 // HUD (placar, combo, vidas, arma, escudo) durante a partida.
 
-function drawMenuPanel(x, y, w, h, borderColor) {
-    ctx.fillStyle = 'rgba(255,255,255,0.03)';
-    ctx.fillRect(x, y, w, h);
-    ctx.strokeStyle = borderColor || '#164';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(x, y, w, h);
+function roundedPanelPath(x, y, w, h, r) {
+    const rr = Math.max(0, Math.min(r || 0, Math.min(w, h) / 2));
+    ctx.beginPath();
+    ctx.moveTo(x + rr, y);
+    ctx.lineTo(x + w - rr, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + rr);
+    ctx.lineTo(x + w, y + h - rr);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - rr, y + h);
+    ctx.lineTo(x + rr, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - rr);
+    ctx.lineTo(x, y + rr);
+    ctx.quadraticCurveTo(x, y, x + rr, y);
+    ctx.closePath();
 }
 
-function drawMenuShipIcon(cx, cy, scale) {
-    // Navinha decorativa e animada no topo do menu (não é o player de
-    // verdade — é só um ícone, então funciona mesmo antes da 1ª partida).
-    const bob = Math.sin(Date.now() / 500) * 4;
-    const y = cy + bob;
-    const w = 34 * scale, h = 42 * scale;
-    const x = cx - w / 2;
+function drawSpaceGridOverlay(alpha, spacing, drift) {
+    const step = spacing || 26;
+    const off = ((drift || 0) % step + step) % step;
+    ctx.save();
+    ctx.globalAlpha = alpha || 0.08;
+    ctx.strokeStyle = 'rgba(120,235,255,0.18)';
+    ctx.lineWidth = 1;
+    for (let x = -step; x <= W + step; x += step) {
+        ctx.beginPath(); ctx.moveTo(x + off, 0); ctx.lineTo(x + off, H); ctx.stroke();
+    }
+    for (let y = -step; y <= H + step; y += step) {
+        ctx.beginPath(); ctx.moveTo(0, y + off * 0.4); ctx.lineTo(W, y + off * 0.4); ctx.stroke();
+    }
+    ctx.restore();
+}
 
-    ctx.fillStyle = '#ffaa00';
-    ctx.globalAlpha = 0.7 + Math.sin(Date.now() / 120) * 0.25;
+function drawMenuPanel(x, y, w, h, borderColor, options) {
+    const accent = borderColor || '#3ad9ff';
+    const opts = options || {};
+    const radius = opts.radius || 14;
+    ctx.save();
+    const fill = ctx.createLinearGradient(x, y, x, y + h);
+    fill.addColorStop(0, opts.topFill || 'rgba(10,24,42,0.86)');
+    fill.addColorStop(0.58, opts.midFill || 'rgba(5,14,28,0.9)');
+    fill.addColorStop(1, opts.bottomFill || 'rgba(3,8,18,0.94)');
+    roundedPanelPath(x, y, w, h, radius); ctx.fillStyle = fill; ctx.fill();
+    if (opts.glow !== false) { ctx.shadowColor = accent; ctx.shadowBlur = opts.shadowBlur || 14; }
+    ctx.strokeStyle = accent; ctx.lineWidth = opts.lineWidth || 1.4;
+    roundedPanelPath(x + .5, y + .5, w - 1, h - 1, radius); ctx.stroke(); ctx.shadowBlur = 0;
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth = 1;
+    roundedPanelPath(x + 6, y + 6, w - 12, h - 12, Math.max(6, radius - 5)); ctx.stroke();
+    ctx.fillStyle = accent; ctx.globalAlpha = .22;
+    ctx.fillRect(x + 2, y + 2, Math.min(w * .32, 128), 4);
+    ctx.fillRect(x + w - Math.min(w * .2, 86) - 2, y + h - 6, Math.min(w * .2, 86), 3);
+    ctx.globalAlpha = 1; ctx.strokeStyle = accent; ctx.lineWidth = 2;
+    const bracket = Math.min(18, Math.max(10, w * .06));
     ctx.beginPath();
-    ctx.moveTo(cx - 5 * scale, y + h - 4);
-    ctx.lineTo(cx, y + h + 10 * scale);
-    ctx.lineTo(cx + 5 * scale, y + h - 4);
-    ctx.closePath();
-    ctx.fill();
-    ctx.globalAlpha = 1;
+    ctx.moveTo(x+8,y+bracket);ctx.lineTo(x+8,y+8);ctx.lineTo(x+bracket,y+8);
+    ctx.moveTo(x+w-bracket,y+8);ctx.lineTo(x+w-8,y+8);ctx.lineTo(x+w-8,y+bracket);
+    ctx.moveTo(x+8,y+h-bracket);ctx.lineTo(x+8,y+h-8);ctx.lineTo(x+bracket,y+h-8);
+    ctx.moveTo(x+w-bracket,y+h-8);ctx.lineTo(x+w-8,y+h-8);ctx.lineTo(x+w-8,y+h-bracket);
+    ctx.stroke(); ctx.restore();
+}
 
-    ctx.fillStyle = '#00aaff';
-    ctx.beginPath();
-    ctx.moveTo(cx, y);
-    ctx.lineTo(x + w * 0.85, y + h * 0.6);
-    ctx.lineTo(x + w * 0.62, y + h);
-    ctx.lineTo(x + w * 0.38, y + h);
-    ctx.lineTo(x + w * 0.15, y + h * 0.6);
-    ctx.closePath();
-    ctx.fill();
-    ctx.fillStyle = '#88ddff';
-    ctx.beginPath();
-    ctx.ellipse(cx, y + h * 0.4, w * 0.12, h * 0.14, 0, 0, Math.PI * 2);
-    ctx.fill();
+function drawTechButton(rect, label, subLabel, accent, options) {
+    const opts=options||{}, a=accent||'#57f0ff';
+    drawMenuPanel(rect.x,rect.y,rect.w,rect.h,a,{radius:opts.radius||12,shadowBlur:opts.shadowBlur||12,
+      topFill:opts.topFill||'rgba(12,28,48,0.92)',midFill:opts.midFill||'rgba(6,16,30,0.94)',bottomFill:opts.bottomFill||'rgba(2,8,18,0.96)'});
+    if(opts.locked){ctx.fillStyle='rgba(0,0,0,0.34)';roundedPanelPath(rect.x+1,rect.y+1,rect.w-2,rect.h-2,11);ctx.fill();}
+    ctx.textAlign='center';ctx.fillStyle=opts.textColor||a;
+    ctx.font=opts.font||('bold '+Math.max(14,Math.floor(rect.h*.34))+'px Trebuchet MS');
+    ctx.fillText(label,rect.x+rect.w/2,rect.y+rect.h*(subLabel?.47:.6));
+    if(subLabel){ctx.fillStyle=opts.subColor||'rgba(210,255,255,0.72)';ctx.font=opts.subFont||'11px Trebuchet MS';ctx.fillText(subLabel,rect.x+rect.w/2,rect.y+rect.h*.78);}
+}
+
+function drawSectionCaption(textValue,x,y,accent){
+    ctx.textAlign='left';ctx.font='bold 11px Trebuchet MS';ctx.fillStyle=accent||'#66eeff';ctx.fillText(textValue,x,y);
+    const w=Math.min(140,ctx.measureText(textValue).width+16);ctx.globalAlpha=.35;ctx.fillRect(x,y+4,w,2);ctx.globalAlpha=1;
+}
+
+function drawMenuShipIcon(cx,cy,scale){
+    const bob=Math.sin(Date.now()/500)*4,pulse=.65+Math.sin(Date.now()/160)*.18,y=cy+bob,w=42*scale,h=54*scale,x=cx-w/2;
+    ctx.save();ctx.shadowColor='#4be6ff';ctx.shadowBlur=14;ctx.fillStyle='rgba(90,245,255,.2)';
+    ctx.beginPath();ctx.ellipse(cx,y+h*.54,w*.76,h*.55,0,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;
+    ctx.fillStyle='rgba(255,180,40,'+pulse.toFixed(3)+')';ctx.beginPath();ctx.moveTo(cx-8*scale,y+h-6*scale);ctx.lineTo(cx,y+h+18*scale);ctx.lineTo(cx+8*scale,y+h-6*scale);ctx.closePath();ctx.fill();
+    ctx.fillStyle='#2fe3ff';ctx.beginPath();ctx.moveTo(cx,y);ctx.lineTo(x+w*.92,y+h*.56);ctx.lineTo(x+w*.72,y+h*.95);ctx.lineTo(cx+7*scale,y+h*.76);ctx.lineTo(cx-7*scale,y+h*.76);ctx.lineTo(x+w*.28,y+h*.95);ctx.lineTo(x+w*.08,y+h*.56);ctx.closePath();ctx.fill();
+    ctx.fillStyle='#c7fbff';ctx.beginPath();ctx.ellipse(cx,y+h*.38,w*.14,h*.13,0,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,.55)';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(cx,y+8*scale);ctx.lineTo(cx,y+h*.74);ctx.moveTo(cx-11*scale,y+h*.56);ctx.lineTo(cx+11*scale,y+h*.56);ctx.stroke();ctx.restore();
 }
 
 function drawStartScreen() {
@@ -680,36 +724,18 @@ function drawStoryCompleteScreen() {
 
 
 function drawMuteButton() {
-    const r = { x: W - 44, y: 8, w: 36, h: 28 };
-    // Evita sobrepor o HUD de vidas durante o jogo — sobe no menu
-    if (gameState === 'PLAYING' || gameState === 'PAUSED' || gameState === 'LEVEL_TRANSITION') {
-        r.y = H - 36;
-        r.x = W - 44;
-    }
-    uiButtons.muteBtn = r;
-    ctx.fillStyle = soundMuted ? 'rgba(255,80,80,0.25)' : 'rgba(0,255,0,0.12)';
-    ctx.fillRect(r.x, r.y, r.w, r.h);
-    ctx.strokeStyle = soundMuted ? '#f66' : '#0a0';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(r.x, r.y, r.w, r.h);
-    ctx.font = '16px Courier New';
-    ctx.textAlign = 'center';
-    ctx.fillStyle = soundMuted ? '#f88' : '#0f0';
-    ctx.fillText(soundMuted ? '🔇' : '🔊', r.x + r.w / 2, r.y + 20);
+    const r={x:W-48,y:8,w:38,h:30};
+    if(gameState==='PLAYING'||gameState==='PAUSED'||gameState==='LEVEL_TRANSITION'){r.y=H-38;r.x=W-48;}
+    uiButtons.muteBtn=r;
+    drawMenuPanel(r.x,r.y,r.w,r.h,soundMuted?'#ff7f7f':'#64efff',{radius:10,shadowBlur:8,topFill:'rgba(10,22,40,.9)',midFill:'rgba(5,12,24,.94)',bottomFill:'rgba(2,8,18,.96)'});
+    ctx.font='16px Trebuchet MS';ctx.textAlign='center';ctx.fillStyle=soundMuted?'#ff9d9d':'#93fcff';ctx.fillText(soundMuted?'🔇':'🔊',r.x+r.w/2,r.y+21);
 }
 
 function drawPauseButton() {
-    if (gameState !== 'PLAYING' && gameState !== 'PAUSED') { uiButtons.pauseBtn = null; return; }
-    const r = { x: W - 52, y: 10, w: 40, h: 34 };
-    uiButtons.pauseBtn = r;
-    ctx.fillStyle = 'rgba(0,12,28,.72)';
-    ctx.fillRect(r.x, r.y, r.w, r.h);
-    ctx.strokeStyle = '#62e8ff';
-    ctx.strokeRect(r.x, r.y, r.w, r.h);
-    ctx.fillStyle = '#dffcff';
-    ctx.font = 'bold 18px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText(gameState === 'PAUSED' ? '▶' : 'Ⅱ', r.x + r.w / 2, r.y + 23);
+    if(gameState!=='PLAYING'&&gameState!=='PAUSED'){uiButtons.pauseBtn=null;return;}
+    const r={x:W-94,y:8,w:40,h:30};uiButtons.pauseBtn=r;
+    drawMenuPanel(r.x,r.y,r.w,r.h,'#62e8ff',{radius:10,shadowBlur:8,topFill:'rgba(10,22,40,.9)',midFill:'rgba(5,12,24,.94)',bottomFill:'rgba(2,8,18,.96)'});
+    ctx.fillStyle='#dffcff';ctx.font='bold 18px Trebuchet MS';ctx.textAlign='center';ctx.fillText(gameState==='PAUSED'?'▶':'Ⅱ',r.x+r.w/2,r.y+21);
 }
 
 function drawTutorialOverlay() {
@@ -918,101 +944,23 @@ function drawHearts(x, y, count, maxCount, align) {
 }
 
 function drawHUD() {
-    const HUD_H = 64;
-    ctx.fillStyle = 'rgba(0,0,0,0.5)';
-    ctx.fillRect(0, 0, W, HUD_H);
-    ctx.strokeStyle = 'rgba(0,255,0,0.25)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(0, HUD_H);
-    ctx.lineTo(W, HUD_H);
-    ctx.stroke();
-
-    // ---- Esquerda: pontuação e fase ----
-    ctx.fillStyle = '#0f0';
-    ctx.font = 'bold 16px Courier New';
-    ctx.textAlign = 'left';
-    ctx.fillText('SCORE ' + score, 10, 18);
-
-    ctx.font = '12px Courier New';
-    ctx.fillStyle = '#0a0';
-    ctx.fillText('FASE ' + currentLevel + '/' + MAX_LEVEL, 10, 36);
-    ctx.font = '11px Courier New';
-    ctx.fillStyle = '#088';
-    ctx.fillText(getPhase(currentLevel).name, 10, 51);
-
-    // Objetivos da fase: resgates e indicador de Perfect
-    ctx.font = '10px Courier New';
-    const rescueDone = phaseSurvivorsRescued;
-    const rescueNeed = phaseTargetSurvivors;
-    const rescueColor = (rescueDone >= rescueNeed && phaseSurvivorsMissed === 0) ? '#0ff' : '#088';
-    ctx.fillStyle = rescueColor;
-    ctx.fillText('RESGATE ' + rescueDone + '/' + rescueNeed, 10, 62);
-    if (!phaseTookDamage && gameState === 'PLAYING') {
-        ctx.fillStyle = '#ff0';
-        ctx.fillText('PERFECT', 110, 62);
-    }
-
-    // ---- Direita: vidas (corações), arma (pips) e escudo ----
-    const maxHearts = Math.max(player.maxHealth || 3, player.health);
-    drawHearts(W - 10, 6, player.health, Math.min(maxHearts, 6), 'right');
-
-    ctx.font = '11px Courier New';
-    ctx.textAlign = 'right';
-    ctx.fillStyle = '#0a0';
-    ctx.fillText('ARMA', W - 10, 36);
-    for (let i = 0; i < 3; i++) {
-        const px = W - 14 - i * 12;
-        ctx.beginPath();
-        ctx.arc(px, 41, 4, 0, Math.PI * 2);
-        ctx.fillStyle = i < player.weaponLevel ? '#0ff' : 'rgba(255,255,255,0.15)';
-        ctx.fill();
-        ctx.strokeStyle = i < player.weaponLevel ? '#aff' : 'rgba(255,255,255,0.3)';
-        ctx.lineWidth = 1;
-        ctx.stroke();
-    }
-
-    if (player.shield > 0) {
-        ctx.fillStyle = '#0ff';
-        ctx.font = 'bold 12px Courier New';
-        ctx.textAlign = 'right';
-        ctx.fillText('🛡×' + player.shield, W - 10, 58);
-    }
-
-    // ---- Centro: dificuldade + combo/progresso/aviso de chefe ----
-    const diff = currentDifficulty();
-    ctx.fillStyle = diff.color;
-    ctx.font = 'bold 11px Courier New';
-    ctx.textAlign = 'center';
-    ctx.fillText(diff.label, W / 2, 12);
-
-    if (bossActive) {
-        ctx.fillStyle = '#f33';
-        ctx.font = 'bold 15px Courier New';
-        const flash = Math.sin(Date.now() / 150) > 0;
-        if (flash) ctx.fillText('⚠ CHEFE ⚠', W / 2, 32);
-    } else if (comboCount >= 3) {
-        ctx.fillStyle = '#ff0';
-        ctx.font = 'bold 15px Courier New';
-        ctx.fillText('COMBO x' + comboMultiplier().toFixed(1) + ' (' + comboCount + ')', W / 2, 32);
-    } else if (gameState === 'PLAYING') {
-        const progress = Math.min(1, enemiesKilledThisLevel / enemiesToKill);
-        const barW = 150;
-        const barX = (W - barW) / 2;
-        ctx.fillStyle = '#222';
-        ctx.fillRect(barX, 24, barW, 8);
-        ctx.fillStyle = '#0f0';
-        ctx.fillRect(barX, 24, barW * progress, 8);
-        ctx.strokeStyle = '#0f0';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(barX, 24, barW, 8);
-    }
-
-    // ---- Aviso de vida baixa: borda vermelha pulsante ao redor da tela ----
-    if (gameState === 'PLAYING' && player.health === 1) {
-        const pulse = 0.25 + Math.sin(Date.now() / 180) * 0.2;
-        ctx.strokeStyle = `rgba(255,0,0,${pulse})`;
-        ctx.lineWidth = 10;
-        ctx.strokeRect(5, 5, W - 10, H - 10);
-    }
+    const HUD_H=74,topGlow=ctx.createLinearGradient(0,0,0,HUD_H);
+    topGlow.addColorStop(0,'rgba(3,10,24,.88)');topGlow.addColorStop(.55,'rgba(3,10,24,.72)');topGlow.addColorStop(1,'rgba(3,10,24,.18)');
+    ctx.fillStyle=topGlow;ctx.fillRect(0,0,W,HUD_H);ctx.strokeStyle='rgba(92,241,255,.24)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(0,HUD_H-1);ctx.lineTo(W,HUD_H-1);ctx.stroke();
+    function panel(x,y,w,h,accent){drawMenuPanel(x,y,w,h,accent,{radius:12,shadowBlur:8,topFill:'rgba(8,24,44,.86)',midFill:'rgba(5,14,28,.9)',bottomFill:'rgba(2,8,18,.94)'});}
+    function meter(x,y,w,h,frac,c1,c2,stroke){ctx.fillStyle='rgba(255,255,255,.06)';roundedPanelPath(x,y,w,h,Math.min(6,h/2));ctx.fill();if(frac>0){const g=ctx.createLinearGradient(x,0,x+w,0);g.addColorStop(0,c1);g.addColorStop(1,c2||c1);ctx.fillStyle=g;roundedPanelPath(x,y,Math.max(6,w*Math.max(0,Math.min(1,frac))),h,Math.min(6,h/2));ctx.fill();}ctx.strokeStyle=stroke||'rgba(255,255,255,.15)';ctx.lineWidth=1;roundedPanelPath(x,y,w,h,Math.min(6,h/2));ctx.stroke();}
+    const leftW=Math.min(240,Math.max(170,W*.28)),rightW=Math.min(220,Math.max(150,W*.25)),centerGap=10,leftX=8,rightX=W-rightW-8,centerX=leftX+leftW+centerGap,centerW=Math.max(120,rightX-centerX-centerGap);
+    panel(leftX,8,leftW,58,'#7aff8d');panel(centerX,8,centerW,58,bossActive?'#ff6a6a':'#59eaff');panel(rightX,8,rightW,58,'#59eaff');
+    ctx.textAlign='left';ctx.fillStyle='#dffffd';ctx.font='bold 16px Trebuchet MS';ctx.fillText('SCORE '+score,leftX+12,26);ctx.fillStyle='#89ff93';ctx.font='bold 12px Trebuchet MS';ctx.fillText('FASE '+currentLevel+'/'+MAX_LEVEL,leftX+12,43);
+    ctx.fillStyle='rgba(180,255,245,.84)';ctx.font='11px Trebuchet MS';const phaseName=getPhase(currentLevel).name||'',shortPhase=phaseName.length>20?phaseName.slice(0,19)+'…':phaseName;ctx.fillText(shortPhase,leftX+12,58);
+    const rescueDone=phaseSurvivorsRescued,rescueNeed=phaseTargetSurvivors,rescueFrac=rescueNeed>0?Math.min(1,rescueDone/rescueNeed):0;ctx.textAlign='right';ctx.fillStyle='#82f4ff';ctx.font='bold 11px Trebuchet MS';ctx.fillText('RESGATE',leftX+leftW-12,24);meter(leftX+leftW-94,30,82,8,rescueFrac,'#2de6ff','#75ff9a','#2de6ff');ctx.fillStyle=rescueDone>=rescueNeed&&phaseSurvivorsMissed===0?'#75ff9a':'rgba(220,255,255,.8)';ctx.font='11px Trebuchet MS';ctx.fillText(rescueDone+'/'+rescueNeed,leftX+leftW-12,52);
+    const diff=currentDifficulty();ctx.textAlign='center';ctx.fillStyle=diff.color;ctx.font='bold 11px Trebuchet MS';ctx.fillText(diff.label,centerX+centerW/2,20);
+    if(bossActive){const flash=.45+Math.sin(Date.now()/150)*.25;ctx.fillStyle='rgba(255,95,95,'+Math.max(.2,flash).toFixed(3)+')';ctx.font='bold 18px Trebuchet MS';ctx.fillText('⚠ CHEFE EM COMBATE ⚠',centerX+centerW/2,42);}
+    else if(comboCount>=3){ctx.fillStyle='#ffe66d';ctx.font='bold 16px Trebuchet MS';ctx.fillText('COMBO x'+comboMultiplier().toFixed(1),centerX+centerW/2,37);ctx.fillStyle='rgba(240,255,170,.78)';ctx.font='11px Trebuchet MS';ctx.fillText(comboCount+' abates encadeados',centerX+centerW/2,53);}
+    else if(gameState==='PLAYING'){const progress=enemiesToKill>0?Math.min(1,enemiesKilledThisLevel/enemiesToKill):0;meter(centerX+14,26,centerW-28,11,progress,'#1ed9ff','#7eff8f','#59eaff');ctx.fillStyle='#d6ffff';ctx.font='11px Trebuchet MS';ctx.fillText('Setor limpo: '+enemiesKilledThisLevel+'/'+enemiesToKill,centerX+centerW/2,54);}
+    if(!phaseTookDamage&&gameState==='PLAYING'&&!bossActive&&comboCount<3){ctx.fillStyle='#ffd76a';ctx.font='bold 11px Trebuchet MS';ctx.fillText('PERFECT ativo',centerX+centerW/2,20);}
+    const maxHearts=Math.max(player.maxHealth||3,player.health);ctx.textAlign='left';ctx.fillStyle='#ffb3c0';ctx.font='bold 11px Trebuchet MS';ctx.fillText('CASCO',rightX+12,21);drawHearts(rightX+18,26,player.health,Math.min(maxHearts,6),'left');
+    ctx.fillStyle='#84f8ff';ctx.font='bold 11px Trebuchet MS';ctx.fillText('ARMA',rightX+12,49);for(let i=0;i<3;i++){const px=rightX+58+i*14;ctx.beginPath();ctx.arc(px,45,4.5,0,Math.PI*2);ctx.fillStyle=i<player.weaponLevel?'#5deaff':'rgba(255,255,255,.14)';ctx.fill();ctx.strokeStyle=i<player.weaponLevel?'#d8ffff':'rgba(255,255,255,.18)';ctx.lineWidth=1;ctx.stroke();}
+    ctx.textAlign='right';ctx.fillStyle=player.shield>0?'#7bf7ff':'rgba(220,255,255,.55)';ctx.font='bold 12px Trebuchet MS';ctx.fillText(player.shield>0?('🛡 '+player.shield):'sem escudo',rightX+rightW-12,49);
+    if(gameState==='PLAYING'&&player.health===1){const pulse=.22+Math.sin(Date.now()/180)*.18;ctx.strokeStyle='rgba(255,35,35,'+Math.max(.08,pulse).toFixed(3)+')';ctx.lineWidth=10;ctx.strokeRect(5,5,W-10,H-10);}
 }

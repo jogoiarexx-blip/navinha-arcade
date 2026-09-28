@@ -584,6 +584,7 @@ function draw() {
     if (typeof drawAchievementToast === 'function') drawAchievementToast();
     if (typeof achievementToastTimer !== 'undefined' && achievementToastTimer > 0) achievementToastTimer--;
     // Durante o loading o toque fica reservado ao botão de nova tentativa.
+    if (typeof drawUITransitionV12 === 'function') drawUITransitionV12();
     if (gameState !== 'LOADING') drawMuteButton();
     drawPauseButton();
 

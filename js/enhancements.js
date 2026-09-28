@@ -332,35 +332,55 @@ drawStartScreen = function(){
 };
 
 drawShopScreen = function(){
-  ctx.fillStyle='rgba(0,0,0,.55)';ctx.fillRect(0,0,W,H);ctx.textAlign='center';
-  ctx.fillStyle='#0ff';ctx.font='bold 28px Courier New';ctx.fillText('ARSENAL',W/2,58);ctx.fillStyle='#ff0';ctx.font='16px Courier New';ctx.fillText('Créditos: '+credits,W/2,86);
-  const up={x:30,y:105,w:(W-70)/2,h:38}, sh={x:40+up.w,y:105,w:up.w,h:38};uiButtons.shopTabUp=up;uiButtons.shopTabShips=sh;
-  [[up,'UPGRADES','UPGRADES'],[sh,'NAVES','NAVES']].forEach(([r,l,key])=>{ctx.fillStyle=shopTab===key?'rgba(0,255,255,.18)':'rgba(255,255,255,.04)';ctx.fillRect(r.x,r.y,r.w,r.h);ctx.strokeStyle=shopTab===key?'#0ff':'#555';ctx.strokeRect(r.x,r.y,r.w,r.h);ctx.fillStyle=shopTab===key?'#0ff':'#888';ctx.font='bold 14px Courier New';ctx.fillText(l,r.x+r.w/2,r.y+24);});
-  uiButtons.shopRows=[];uiButtons.shipUnlockRows=[];let y=172;
+  if(typeof drawMenuBackdropV12==='function') drawMenuBackdropV12(); else {ctx.fillStyle='rgba(0,0,0,.55)';ctx.fillRect(0,0,W,H);}
+  ctx.textAlign='center';
+  const panelW=Math.min(W-28,660),panelX=(W-panelW)/2,headerY=26;
+  if(typeof glassCard==='function')glassCard(panelX,headerY,panelW,70,'#57e9ff',.03);else drawMenuPanel(panelX,headerY,panelW,70,'#57e9ff');
+  ctx.fillStyle='#e9fdff';ctx.font='900 28px Segoe UI,Arial';ctx.fillText('ARSENAL ESTELAR',W/2,headerY+30);
+  ctx.fillStyle='#ffd76a';ctx.font='14px Segoe UI,Arial';ctx.fillText('Créditos: '+credits,W/2,headerY+52);
+  const up={x:panelX,y:108,w:(panelW-10)/2,h:40},sh={x:panelX+(panelW+10)/2,y:108,w:(panelW-10)/2,h:40};uiButtons.shopTabUp=up;uiButtons.shopTabShips=sh;
+  if(typeof neonButton==='function'){neonButton(up,'UPGRADES','MELHORIAS','#58efff',shopTab==='UPGRADES');neonButton(sh,'NAVES','HANGAR','#7eff8e',shopTab==='NAVES');}
+  else{drawTechButton(up,'UPGRADES','',shopTab==='UPGRADES'?'#0ff':'#777');drawTechButton(sh,'NAVES','',shopTab==='NAVES'?'#0f0':'#777');}
+  const listY=164,listH=H-236;if(typeof glassCard==='function')glassCard(panelX,listY,panelW,listH,'rgba(88,210,255,.34)',.02);else drawMenuPanel(panelX,listY,panelW,listH,'#57e9ff');
+  uiButtons.shopRows=[];uiButtons.shipUnlockRows=[];let y=listY+34;
   if(shopTab==='UPGRADES'){
-    PERMANENT_UPGRADE_DEFS.forEach(def=>{const level=permanentUpgrades[def.key]||0,maxed=level>=def.max,cost=upgradeCost(def),aff=credits>=cost;const r={x:30,y:y-22,w:W-60,h:48};uiButtons.shopRows.push(r);ctx.fillStyle=maxed?'rgba(0,255,255,.09)':aff?'rgba(255,255,0,.07)':'rgba(255,255,255,.035)';ctx.fillRect(r.x,r.y,r.w,r.h);ctx.strokeStyle=maxed?'#0ff':aff?'#aa0':'#444';ctx.strokeRect(r.x,r.y,r.w,r.h);ctx.textAlign='left';ctx.fillStyle='#0f0';ctx.font='bold 15px Courier New';ctx.fillText(def.label,42,y-2);ctx.fillStyle=maxed?'#0ff':aff?'#ff0':'#777';ctx.font='12px Courier New';ctx.fillText(maxed?'NÍVEL MÁXIMO':'Custo: '+cost,42,y+17);ctx.textAlign='right';ctx.fillStyle='#0ff';ctx.fillText(level+'/'+def.max,W-42,y+5);ctx.textAlign='center';y+=62;});
-  } else {
-    SHIP_DEFS.forEach((s,i)=>{const owned=shipsUnlocked[i],selected=selectedShip===i,cost=s.unlockCost||0;const r={x:30,y:y-26,w:W-60,h:72};uiButtons.shipUnlockRows[i]=r;ctx.fillStyle=selected?'rgba(0,255,255,.14)':'rgba(255,255,255,.045)';ctx.fillRect(r.x,r.y,r.w,r.h);ctx.strokeStyle=owned?s.color:'#444';ctx.strokeRect(r.x,r.y,r.w,r.h);ctx.textAlign='left';ctx.fillStyle=s.color;ctx.font='bold 16px Courier New';ctx.fillText(s.name,42,y-3);ctx.fillStyle='#aaa';ctx.font='11px Courier New';ctx.fillText(s.desc,42,y+15);const sp=Math.round((s.speed/8)*5),pow=Math.min(5,Math.round((s.bulletDmg||1)*2.5)),def=Math.min(5,2+(s.healthBonus||0));ctx.fillStyle='#0a0';ctx.fillText('VEL '+ '★'.repeat(Math.max(1,sp))+'  POD '+ '★'.repeat(Math.max(1,pow))+'  DEF '+ '★'.repeat(def),42,y+34);ctx.textAlign='right';ctx.fillStyle=owned?'#0ff':credits>=cost?'#ff0':'#777';ctx.fillText(selected?'SELECIONADA':owned?'TOQUE PARA USAR':'LIBERAR '+cost+' CR',W-42,y+4);ctx.textAlign='center';y+=86;});
+    PERMANENT_UPGRADE_DEFS.forEach(def=>{const level=permanentUpgrades[def.key]||0,maxed=level>=def.max,cost=upgradeCost(def),aff=credits>=cost,r={x:panelX+14,y:y-20,w:panelW-28,h:52};uiButtons.shopRows.push(r);
+      if(typeof glassCard==='function')glassCard(r.x,r.y,r.w,r.h,maxed?'#65edff':aff?'#ffe873':'#46515f',.02);else drawMenuPanel(r.x,r.y,r.w,r.h,maxed?'#0ff':aff?'#ff0':'#444');
+      ctx.textAlign='left';ctx.fillStyle='#eafcff';ctx.font='bold 15px Segoe UI,Arial';ctx.fillText(def.label,r.x+14,y-1);
+      ctx.fillStyle=maxed?'#76f3ff':aff?'#ffe873':'#85919d';ctx.font='12px Segoe UI,Arial';ctx.fillText(maxed?'NÍVEL MÁXIMO':'Custo: '+cost+' créditos',r.x+14,y+18);
+      ctx.textAlign='right';ctx.fillStyle='#7dfbff';ctx.font='bold 13px Segoe UI,Arial';ctx.fillText(level+'/'+def.max,r.x+r.w-14,y+6);
+      const bx=r.x+r.w-140,bw=110;ctx.fillStyle='rgba(255,255,255,.06)';roundRectPath(bx,y+12,bw,8,4);ctx.fill();let g=ctx.createLinearGradient(bx,0,bx+bw,0);g.addColorStop(0,'#1fd9ff');g.addColorStop(1,'#7eff8d');ctx.fillStyle=g;roundRectPath(bx,y+12,bw*(level/def.max),8,4);ctx.fill();y+=62;
+    });
+  }else{
+    SHIP_DEFS.forEach((s,i)=>{const owned=shipsUnlocked[i],selected=selectedShip===i,cost=s.unlockCost||0,r={x:panelX+14,y:y-24,w:panelW-28,h:76};uiButtons.shipUnlockRows[i]=r;
+      if(typeof glassCard==='function')glassCard(r.x,r.y,r.w,r.h,owned?(s.color||'#57e9ff'):'#4c5661',.02);else drawMenuPanel(r.x,r.y,r.w,r.h,owned?(s.color||'#57e9ff'):'#444');
+      ctx.textAlign='left';ctx.fillStyle=s.color||'#57e9ff';ctx.font='bold 17px Segoe UI,Arial';ctx.fillText(s.name,r.x+14,y-2);ctx.fillStyle='#8ea6b8';ctx.font='11px Segoe UI,Arial';ctx.fillText(s.desc,r.x+14,y+16);
+      const sp=Math.round((s.speed/8)*5),pow=Math.min(5,Math.round((s.bulletDmg||1)*2.5)),deff=Math.min(5,2+(s.healthBonus||0));ctx.fillStyle='#dffcff';ctx.font='11px Segoe UI,Arial';ctx.fillText('VEL '+'★'.repeat(Math.max(1,sp))+'  POD '+'★'.repeat(Math.max(1,pow))+'  DEF '+'★'.repeat(deff),r.x+14,y+36);
+      ctx.textAlign='right';ctx.fillStyle=selected?'#7efdc1':owned?'#79f4ff':credits>=cost?'#ffd76a':'#85919d';ctx.font='bold 12px Segoe UI,Arial';ctx.fillText(selected?'SELECIONADA':owned?'TOQUE PARA USAR':'LIBERAR '+cost+' CR',r.x+r.w-14,y+7);y+=86;
+    });
   }
-  const back={x:W/2-90,y:H-58,w:180,h:40};uiButtons.shopBack=back;ctx.fillStyle='rgba(0,255,0,.08)';ctx.fillRect(back.x,back.y,back.w,back.h);ctx.strokeStyle='#0f0';ctx.strokeRect(back.x,back.y,back.w,back.h);ctx.fillStyle='#0f0';ctx.font='bold 14px Courier New';ctx.fillText('← VOLTAR',W/2,back.y+25);
+  const back={x:W/2-100,y:H-54,w:200,h:40};uiButtons.shopBack=back;if(typeof neonButton==='function')neonButton(back,'← VOLTAR','','#7eff8d',true);else drawTechButton(back,'← VOLTAR','','#0f0');
 };
 
 function drawSettingsScreen(){
-  ctx.fillStyle='#03060a';ctx.fillRect(0,0,W,H);ctx.textAlign='center';ctx.fillStyle='#0ff';ctx.font='bold 28px Courier New';ctx.fillText('CONFIGURAÇÕES',W/2,70);
+  if(typeof drawMenuBackdropV12==='function')drawMenuBackdropV12();else{ctx.fillStyle='#03060a';ctx.fillRect(0,0,W,H);}
+  ctx.textAlign='center';const panelW=Math.min(W-36,620),panelX=(W-panelW)/2;
+  if(typeof glassCard==='function')glassCard(panelX,28,panelW,72,'#72c7ff',.03);else drawMenuPanel(panelX,28,panelW,72,'#72c7ff');
+  ctx.fillStyle='#effdff';ctx.font='900 28px Segoe UI,Arial';ctx.fillText('CONFIGURAÇÕES',W/2,58);ctx.fillStyle='#8bb8d8';ctx.font='12px Segoe UI,Arial';ctx.fillText('ajuste o cockpit do combate',W/2,80);
   const rendererStatus=typeof PixiRenderer!=='undefined'?' · '+PixiRenderer.statusLabel():'';
-  const rows=[
-    ['settingsSound','SOM',soundMuted?'DESLIGADO':'LIGADO'],
-    ['settingsVibrate','VIBRAÇÃO',vibrateEnabled?'LIGADA':'DESLIGADA'],
-    ['settingsControl','CONTROLE',controlMode],
-    ['settingsFx','GRÁFICOS',GraphicsManager.displayLabel()+rendererStatus],
-    ['settingsFullscreen','TELA CHEIA',document.fullscreenElement?'SAIR':'ATIVAR']
-  ];
-  let y=130;rows.forEach(([key,label,val])=>{const r={x:45,y,w:W-90,h:58};uiButtons[key]=r;ctx.fillStyle='rgba(0,255,255,.06)';ctx.fillRect(r.x,r.y,r.w,r.h);ctx.strokeStyle='#166';ctx.strokeRect(r.x,r.y,r.w,r.h);ctx.textAlign='left';ctx.fillStyle='#ddd';ctx.font='14px Courier New';ctx.fillText(label,r.x+16,r.y+23);ctx.textAlign='right';ctx.fillStyle='#0ff';ctx.font='bold 14px Courier New';ctx.fillText(val,r.x+r.w-16,r.y+35);ctx.textAlign='center';y+=72;});
-  uiButtons.settingsBack={x:W/2-90,y:H-70,w:180,h:42};ctx.strokeStyle='#0f0';ctx.strokeRect(uiButtons.settingsBack.x,uiButtons.settingsBack.y,180,42);ctx.fillStyle='#0f0';ctx.font='bold 14px Courier New';ctx.fillText('← VOLTAR',W/2,H-43);
-  ctx.fillStyle='#688';ctx.font='11px Courier New';ctx.fillText('AUTO adapta · BAIXO 24 · MÉDIO 40 · ALTO 60 FPS',W/2,H-116);ctx.fillText('MOUSE: mover pelo cursor + tiro automático',W/2,H-100);ctx.fillText('TECLADO: WASD/setas + Espaço',W/2,H-84);
+  const rows=[['settingsSound','SOM',soundMuted?'DESLIGADO':'LIGADO'],['settingsVibrate','VIBRAÇÃO',vibrateEnabled?'LIGADA':'DESLIGADA'],['settingsControl','CONTROLE',controlMode],['settingsFx','GRÁFICOS',GraphicsManager.displayLabel()+rendererStatus],['settingsFullscreen','TELA CHEIA',document.fullscreenElement?'SAIR':'ATIVAR']];
+  let y=126;rows.forEach(([key,label,val])=>{const rr={x:panelX,y,w:panelW,h:58};uiButtons[key]=rr;if(typeof glassCard==='function')glassCard(rr.x,rr.y,rr.w,rr.h,'#58efff',.02);else drawMenuPanel(rr.x,rr.y,rr.w,rr.h,'#58efff');ctx.textAlign='left';ctx.fillStyle='#dffcff';ctx.font='bold 14px Segoe UI,Arial';ctx.fillText(label,rr.x+18,rr.y+23);ctx.fillStyle='#84a2b7';ctx.font='11px Segoe UI,Arial';ctx.fillText('toque para alternar',rr.x+18,rr.y+40);ctx.textAlign='right';ctx.fillStyle='#79f4ff';ctx.font='bold 14px Segoe UI,Arial';ctx.fillText(val,rr.x+rr.w-18,rr.y+34);ctx.textAlign='center';y+=68;});
+  uiButtons.settingsBack={x:W/2-100,y:H-54,w:200,h:40};if(typeof neonButton==='function')neonButton(uiButtons.settingsBack,'← VOLTAR','','#7eff8d',true);else drawTechButton(uiButtons.settingsBack,'← VOLTAR','','#0f0');
+  ctx.fillStyle='#6b8799';ctx.font='11px Segoe UI,Arial';ctx.fillText('AUTO adapta · BAIXO 24 · MÉDIO 40 · ALTO 60 FPS',W/2,H-112);ctx.fillText('Mouse: mover pelo cursor + tiro automático',W/2,H-96);ctx.fillText('Teclado: WASD/setas + Espaço',W/2,H-80);
 }
 function drawAchievementsScreen(){
-  ctx.fillStyle='#04030a';ctx.fillRect(0,0,W,H);ctx.textAlign='center';ctx.fillStyle='#ff0';ctx.font='bold 27px Courier New';ctx.fillText('CONQUISTAS',W/2,62);const got=ACHIEVEMENTS.filter(a=>achievements[a.key]).length;ctx.fillStyle='#0ff';ctx.font='14px Courier New';ctx.fillText(got+'/'+ACHIEVEMENTS.length+' desbloqueadas',W/2,90);let y=120;ACHIEVEMENTS.forEach(a=>{const ok=!!achievements[a.key];ctx.fillStyle=ok?'rgba(255,255,0,.08)':'rgba(255,255,255,.025)';ctx.fillRect(38,y,W-76,54);ctx.strokeStyle=ok?'#aa0':'#333';ctx.strokeRect(38,y,W-76,54);ctx.textAlign='left';ctx.fillStyle=ok?'#ff0':'#666';ctx.font='bold 13px Courier New';ctx.fillText((ok?'★ ':'☆ ')+a.name,50,y+21);ctx.font='11px Courier New';ctx.fillStyle=ok?'#aaa':'#555';ctx.fillText(a.desc,50,y+40);y+=62;});uiButtons.achievementsBack={x:W/2-90,y:H-58,w:180,h:40};ctx.textAlign='center';ctx.strokeStyle='#0f0';ctx.strokeRect(W/2-90,H-58,180,40);ctx.fillStyle='#0f0';ctx.fillText('← VOLTAR',W/2,H-33);}
+  if(typeof drawMenuBackdropV12==='function')drawMenuBackdropV12();else{ctx.fillStyle='#04030a';ctx.fillRect(0,0,W,H);}
+  ctx.textAlign='center';const got=ACHIEVEMENTS.filter(a=>achievements[a.key]).length,panelW=Math.min(W-32,650),panelX=(W-panelW)/2;
+  if(typeof glassCard==='function')glassCard(panelX,26,panelW,74,'#ffd76a',.03);else drawMenuPanel(panelX,26,panelW,74,'#ffd76a');
+  ctx.fillStyle='#fff3bb';ctx.font='900 28px Segoe UI,Arial';ctx.fillText('CONQUISTAS',W/2,56);ctx.fillStyle='#8ddfff';ctx.font='13px Segoe UI,Arial';ctx.fillText(got+'/'+ACHIEVEMENTS.length+' desbloqueadas',W/2,79);
+  let y=118;ACHIEVEMENTS.forEach(a=>{const ok=!!achievements[a.key];if(typeof glassCard==='function')glassCard(panelX,y,panelW,54,ok?'#ffd76a':'#4e5965',.02);else drawMenuPanel(panelX,y,panelW,54,ok?'#aa0':'#333');ctx.textAlign='left';ctx.fillStyle=ok?'#ffe873':'#93a0aa';ctx.font='bold 13px Segoe UI,Arial';ctx.fillText((ok?'★ ':'☆ ')+a.name,panelX+14,y+21);ctx.font='11px Segoe UI,Arial';ctx.fillStyle=ok?'#d7dadf':'#74808a';ctx.fillText(a.desc,panelX+14,y+39);if(ok){ctx.textAlign='right';ctx.fillStyle='#ffe873';ctx.fillText('LIBERADA',panelX+panelW-14,y+30);}ctx.textAlign='center';y+=62;});
+  uiButtons.achievementsBack={x:W/2-100,y:H-54,w:200,h:40};if(typeof neonButton==='function')neonButton(uiButtons.achievementsBack,'← VOLTAR','','#7eff8d',true);else drawTechButton(uiButtons.achievementsBack,'← VOLTAR','','#0f0');
+}
 
 // Menu tap substituído para retirar "clique vazio = jogar" e incluir telas novas.
 const baseMenuTap = handleMenuTap;
